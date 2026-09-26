@@ -8,10 +8,11 @@ Juego web para localizar los 313 concellos de Galicia.
 - `favicon.svg`, `apple-touch-icon.png`, `og-image.png`: iconos y vista previa para compartir.
 
 ## Puesta en marcha
-1. Sube esta carpeta a un repositorio de GitHub e impórtalo en Vercel (no necesita compilación).
-2. En el proyecto de Vercel: Storage > Create Database > Upstash for Redis (plan gratuito) > conéctalo al proyecto.
-   Vercel añade solo las variables `KV_REST_API_URL` y `KV_REST_API_TOKEN` (también valen `UPSTASH_REDIS_REST_URL` y `UPSTASH_REDIS_REST_TOKEN`).
-3. Vuelve a desplegar para que la función lea esas variables.
+1. Sube esta carpeta a un repositorio de GitHub e impórtalo en Vercel (no necesita compilación; Vercel instala `redis` desde `package.json`).
+2. Reutiliza tu base de datos Redis: en Vercel, Storage > tu base de datos Redis > Connect Project > elige el proyecto de los concellos.
+   Así el proyecto recibe la variable `REDIS_URL`. Las claves del ranking empiezan por `concellos:`, así que no chocan con los datos de otros proyectos.
+   (También funciona con Upstash, con `KV_REST_API_URL` y `KV_REST_API_TOKEN`.)
+3. Vuelve a desplegar para que la función lea la variable.
 4. Si la dirección final no es `concellos.vercel.app`, cambia la etiqueta `og:image` de `index.html` para que apunte a la tuya.
 
 ## Ranking

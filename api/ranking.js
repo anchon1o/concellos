@@ -1,18 +1,38 @@
 // Ranking do Reto: unha táboa por nivel e zona (toda Galicia ou unha provincia).
-// Garda as marcas en Upstash Redis (conectado desde Vercel > Storage).
+// Garda as marcas en Redis (conectado desde Vercel > Storage).
 const crypto = require("crypto");
 
 const NIVEIS = ["facil", "medio", "dificil", "perfecto"];
 const TOTAL = { todo: 313, "15": 93, "27": 67, "32": 92, "36": 61 };
-const URL_REDIS = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
-const TOKEN = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+// Vale con Redis Cloud (REDIS_URL) ou con Upstash (variables REST)
+const REDIS_URL = process.env.REDIS_URL;
+const URL_REST = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
+const TOKEN_REST = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
 const GARDAR = 100; // marcas que se conservan por táboa
 const AMOSAR = 20;  // marcas que se devolven
 
+// Conexión reutilizada entre chamadas mentres a función siga quente
+let cliente = null;
+function conectar() {
+  if (!cliente) {
+    const { createClient } = require("redis");
+    const c = createClient({ url: REDIS_URL });
+    c.on("error", () => {});
+    cliente = c.connect().then(() => c).catch(e => { cliente = null; throw e; });
+  }
+  return cliente;
+}
+
 async function redis(comandos) {
-  const r = await fetch(`${URL_REDIS}/pipeline`, {
+  if (REDIS_URL) {
+    const c = await conectar();
+    const saida = [];
+    for (const cmd of comandos) saida.push(await c.sendCommand(cmd.map(String)));
+    return saida;
+  }
+  const r = await fetch(`${URL_REST}/pipeline`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" },
+    headers: { Authorization: `Bearer ${TOKEN_REST}`, "Content-Type": "application/json" },
     body: JSON.stringify(comandos),
   });
   if (!r.ok) throw new Error("Redis " + r.status);
@@ -30,7 +50,7 @@ function puntuacion(acertos, erros, tempoMs) {
 
 module.exports = async (req, res) => {
   res.setHeader("Cache-Control", "no-store");
-  if (!URL_REDIS || !TOKEN) return res.status(500).json({ erro: "Falta conectar a base de datos (Upstash Redis)." });
+  if (!REDIS_URL && !(URL_REST && TOKEN_REST)) return res.status(500).json({ erro: "Falta conectar a base de datos Redis." });
 
   try {
     if (req.method === "GET") {
