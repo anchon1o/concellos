@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="gl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Concellos de Galicia</title>
+<meta name="description" content="Xogo para aprender e localizar os 313 concellos de Galicia no mapa.">
+<meta name="theme-color" content="#7c9fc4">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Crect%20width%3D%22100%22%20height%3D%22100%22%20rx%3D%2222%22%20fill%3D%22%237c9fc4%22/%3E%3Cpath%20d%3D%22M79.6%2019.8%20L71.9%2017.8%20L67.4%2012.9%20L60.2%2010.0%20L55.4%2013.7%20L52.4%2012.0%20L48.5%2013.7%20L44.9%2017.8%20L43.4%2021.8%20L45.5%2023.9%20L41.9%2025.9%20L38.9%2026.3%20L34.4%2028.8%20L26.9%2028.8%20L21.0%2034.1%20L15.0%2036.1%20L15.6%2041.4%20L12.6%2046.3%20L16.5%2046.3%20L18.0%2050.4%20L20.4%2051.2%20L18.6%2055.3%20L19.8%2060.6%20L25.4%2057.8%20L28.4%2058.6%20L23.9%2063.5%20L26.3%2066.7%20L31.4%2065.9%20L26.9%2069.6%20L23.9%2072.0%20L31.4%2070.8%20L28.4%2074.9%20L24.8%2078.2%20L24.5%2087.1%20L32.0%2081.8%20L44.9%2077.8%20L47.9%2083.1%20L45.5%2088.4%20L53.9%2088.8%20L62.9%2090.0%20L71.9%2088.0%20L80.8%2085.1%20L85.3%2081.0%20L82.3%2072.9%20L87.4%2067.6%20L85.3%2060.6%20L85.9%2050.4%20L82.3%2042.2%20L84.4%2036.1%20L77.9%2030.0%20L80.8%2023.9%20Z%22%20fill%3D%22%23f7f9f8%22%20stroke%3D%22%231f2d33%22%20stroke-width%3D%222%22%20stroke-linejoin%3D%22round%22/%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="Concellos">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Concellos de Galicia">
+<meta property="og:description" content="Localiza os 313 concellos de Galicia no mapa.">
+<meta property="og:url" content="https://concellosgz.vercel.app/">
+<meta property="og:image" content="https://concellosgz.vercel.app/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
+<style>
+:root{
+  --mar:#cfdde3; --tinta:#1f2d33; --suave:#5b6b72; --papel:#f7f9f8; --linea:#dfe7ea;
+  --c15:#8fb39a; --c27:#7c9fc4; --c32:#b98f7a; --c36:#cdb772;
+  --neutro:#c4ccbb; --borde:#ffffff; --ok:#2f7d4f; --medio:#e0a526; --ko:#c63b2f; --sel:#e0473a;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --mar:#16252c; --tinta:#e8eef0; --suave:#9fb0b6; --papel:#0f1a1f; --linea:#223238;
+    --c15:#4f7a5c; --c27:#46668c; --c32:#7d5a48; --c36:#8a7a40; --neutro:#4d5a52; --borde:#0f1a1f;
+    --ok:#4fbf7c; --medio:#f0b83a; --ko:#ff6b5c; --sel:#ff6b5c;
+  }
+}
+:root[data-theme="dark"]{
+  --mar:#16252c; --tinta:#e8eef0; --suave:#9fb0b6; --papel:#0f1a1f; --linea:#223238;
+  --c15:#4f7a5c; --c27:#46668c; --c32:#7d5a48; --c36:#8a7a40; --neutro:#4d5a52; --borde:#0f1a1f;
+  --ok:#4fbf7c; --medio:#f0b83a; --ko:#ff6b5c; --sel:#ff6b5c;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--papel);color:var(--tinta);font-family:"Atkinson Hyperlegible",system-ui,sans-serif;display:flex;flex-direction:column}
+header{padding:12px 14px 10px}
+.marca{display:flex;align-items:center;gap:10px}
+.logo{width:36px;height:37px;flex:none;overflow:visible}
+.logo path{stroke:var(--papel);stroke-width:12}
+h1{font-family:"Bricolage Grotesque",system-ui,sans-serif;font-weight:800;font-size:1.45rem;margin:0;letter-spacing:-.01em}
+#estado{color:var(--suave);font-size:.86rem;line-height:1.3;margin:0;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:4;overflow:hidden}
+.panel{display:flex;gap:12px;margin-top:10px;height:128px}
+.panel[hidden]{display:none}
+.izq{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px}
+.info{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:space-between}
+.info.xogo #estado{-webkit-line-clamp:2}
+.accion{display:flex;gap:8px;flex:none}
+.accion select{-webkit-appearance:none;appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--suave) 50%),linear-gradient(135deg,var(--suave) 50%,transparent 50%);background-position:calc(100% - 15px) 13px,calc(100% - 10px) 13px;background-size:5px 5px;background-repeat:no-repeat;padding-right:26px}
+.accion[hidden]{display:none}
+.filtro{flex:none;width:82px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;text-align:center}
+.etq{font-size:.72rem;font-weight:700;color:var(--suave);line-height:1}
+#zonaTxt{font-size:.72rem;color:var(--suave);line-height:1.1}
+.modos{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.modos button{height:44px;display:flex;align-items:center;justify-content:center;padding:0;border-radius:12px;border:2px solid var(--linea);background:var(--papel);color:var(--tinta);cursor:pointer}
+.modos button[aria-pressed="true"]{background:var(--tinta);color:var(--papel);border-color:var(--tinta)}
+.modos svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.modos svg .enchido{fill:currentColor;stroke:none}
+.modos .dez{font-family:"Bricolage Grotesque",system-ui,sans-serif;font-weight:800;font-size:1.15rem;line-height:1}
+#estado b{color:var(--tinta)}
+.fila{display:flex;gap:8px;margin-top:8px}
+select,#comezar{font:inherit;font-size:.9rem;height:32px;line-height:1;padding:0 10px;border-radius:10px;border:2px solid var(--linea);background:var(--papel);color:var(--tinta)}
+select{flex:1;min-width:0}
+.fila{align-items:center}
+.zona{flex:1;display:flex;align-items:center;gap:8px;min-width:0}
+#minimapa{width:66px;height:68px;flex:none;overflow:visible;-webkit-tap-highlight-color:transparent;outline:none}
+#minimapa path{stroke:var(--papel);stroke-width:14;cursor:pointer;transition:fill .2s}
+#minimapa path.off{fill:var(--linea)!important}
+#minimapa path{outline:none;-webkit-tap-highlight-color:transparent}
+#minimapa path:focus-visible{stroke:var(--tinta)}
+#comezar{font-weight:700;background:var(--ok);border-color:var(--ok);color:#fff;cursor:pointer;padding:9px 16px}
+button:focus-visible,select:focus-visible{outline:3px solid var(--c27);outline-offset:2px}
+main{flex:1;min-height:0;position:relative;background:var(--mar);overflow:hidden;display:flex;flex-direction:column}
+#mapa{flex:1;min-height:0;height:auto}
+svg{width:100%;height:100%;display:block;touch-action:none}
+.concello{stroke:var(--borde);stroke-width:.5;vector-effect:non-scaling-stroke;cursor:pointer;transition:fill .25s}
+.concello.fora{opacity:.18;pointer-events:none}
+.concello.sel{fill:var(--sel)!important}
+.concello.ok1{fill:var(--ok)!important}
+.concello.ok2{fill:var(--medio)!important}
+.concello.ko{fill:var(--ko)!important}
+.concello.erro{animation:erro .5s}
+.concello.sinala{animation:sinala .45s 4 alternate}
+@keyframes erro{0%,100%{fill-opacity:1}50%{fill-opacity:.2}}
+@keyframes sinala{from{fill:var(--ko)}to{fill:var(--papel)}}
+main.neutro .concello:not(.ok1):not(.ok2):not(.ko):not(.sel):not(.sinala){fill:var(--neutro)!important}
+main.neutro .prov{display:none}
+.prov{fill:none;stroke:var(--tinta);stroke-width:1.4;vector-effect:non-scaling-stroke;pointer-events:none;opacity:.55}
+.barra{position:relative;flex:none;margin:0 10px 10px;background:var(--papel);border-radius:14px;padding:11px 14px;box-shadow:0 4px 18px rgba(0,0,0,.2);display:none}
+.barra.visible{display:block}
+#pregunta{font-size:.9rem;color:var(--suave)}
+#obxectivo{font-family:"Bricolage Grotesque",system-ui,sans-serif;font-weight:800;font-size:1.45rem;line-height:1.15;display:block}
+#reloxo{font-variant-numeric:tabular-nums;font-weight:700;color:var(--tinta)}
+.datos{display:flex;justify-content:space-between;align-items:center;margin-top:6px;font-size:.92rem;color:var(--suave)}
+#aviso{min-height:1.3em;font-weight:700;margin-top:4px}
+#aviso.ben{color:var(--ok)} #aviso.mal{color:var(--ko)}
+#saír{font:inherit;font-size:.85rem;background:none;border:none;color:var(--suave);text-decoration:underline;cursor:pointer;padding:0}
+#ficha b,#ficha span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#ficha span{display:block;min-height:1.3em}
+#ficha b{font-family:"Bricolage Grotesque",system-ui,sans-serif;font-size:1.3rem;display:block}
+#ficha span{color:var(--suave)}
+#ficha.baleira b{color:var(--suave);font-size:1.05rem}
+#fin{position:absolute;inset:0;z-index:4;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;padding:20px}
+#fin.visible{display:flex}
+.capa{position:absolute;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;padding:16px;z-index:5}
+.capa.visible{display:flex}
+.icona{width:36px;flex:none;padding:0!important;display:flex;align-items:center;justify-content:center}
+.icona svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+#verRanking{font:inherit;height:32px;border-radius:10px;border:2px solid var(--linea);background:var(--papel);color:var(--tinta);cursor:pointer}
+#alias{flex:1;min-width:0;font:inherit;font-size:.95rem;padding:9px 10px;border-radius:10px;border:2px solid var(--linea);background:var(--papel);color:var(--tinta)}
+.nota{font-size:.85rem;color:var(--suave);min-height:1.2em;margin-top:6px}
+.lista{list-style:none;margin:12px 0 0;padding:0;text-align:left;max-height:48vh;overflow:auto;font-size:.9rem}
+.lista li{display:grid;grid-template-columns:1.8em 1fr auto;gap:2px 8px;padding:7px 4px;border-bottom:1px solid var(--linea)}
+.lista li.eu{background:var(--linea);border-radius:8px}
+.lista .pos{font-weight:700;color:var(--suave)}
+.lista .nom{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lista .det{grid-column:2 / 4;color:var(--suave);font-size:.82rem}
+.lista .tem{font-variant-numeric:tabular-nums;font-weight:700}
+.caixa{background:var(--papel);border-radius:16px;padding:20px;max-width:340px;width:100%;text-align:center}
+.caixa h2{font-family:"Bricolage Grotesque",system-ui,sans-serif;font-weight:800;margin:0 0 4px;font-size:1.6rem}
+.cifras{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:16px 0}
+.cifras b{display:block;font-family:"Bricolage Grotesque",system-ui,sans-serif;font-size:1.5rem}
+.cifras span{font-size:.8rem;color:var(--suave)}
+#record{font-size:.92rem;color:var(--suave);min-height:1.2em}
+.caixa .fila button{flex:1;font:inherit;font-weight:700;padding:11px;border-radius:10px;cursor:pointer;border:2px solid var(--linea);background:var(--papel);color:var(--tinta)}
+.caixa .fila button.prin{background:var(--ok);border-color:var(--ok);color:#fff}
+.concello.lonxe{opacity:.3}
+.concello.apagado{opacity:.12;pointer-events:none}
+.concello.sabido{fill:var(--ok)!important;opacity:.85}
+.concello.fronte{stroke:var(--tinta);stroke-width:1.6}
+.etiqueta{font-family:"Atkinson Hyperlegible",system-ui,sans-serif;font-weight:700;fill:var(--tinta);stroke:var(--papel);stroke-width:3px;paint-order:stroke;stroke-linejoin:round;text-anchor:middle;dominant-baseline:middle;pointer-events:none}
+.etiqueta.vella{font-weight:400;fill:var(--suave)}
+#arredores h3{font-family:"Bricolage Grotesque",system-ui,sans-serif;font-weight:800;font-size:1.2rem;margin:0}
+#arredores p{margin:3px 0 0;color:var(--suave);font-size:.92rem}
+.botons{display:flex;gap:8px;margin-top:10px}
+.botons button{flex:1;font:inherit;font-weight:700;padding:10px;border-radius:10px;cursor:pointer;border:2px solid var(--linea);background:var(--papel);color:var(--tinta)}
+.botons button.prin{background:var(--ok);border-color:var(--ok);color:#fff}
+@media (prefers-reduced-motion:reduce){.concello{transition:none}.concello.erro,.concello.sinala{animation:none}}
+</style>
+</head>
+<body>
+<header>
+  <div class="marca">
+    <svg id="logo" class="logo" viewBox="0 0 800 820" aria-hidden="true"></svg>
+    <h1>Concellos de Galicia</h1>
+  </div>
+  <div id="controis" class="panel">
+    <div class="izq">
+      <div class="modos" role="group" aria-label="Modo de xogo">
+        <button data-modo="aprender" aria-pressed="true" aria-label="Pasear" title="Pasear">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polygon points="16.2 7.8 14.1 14.1 7.8 16.2 9.9 9.9"/></svg></button>
+        <button data-modo="arredores" aria-pressed="false" aria-label="Arredores" title="Arredores">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2" class="enchido"/></svg></button>
+        <button data-modo="dez" aria-pressed="false" aria-label="De 10 en 10" title="De 10 en 10">
+          <span class="dez">10</span></button>
+        <button data-modo="pleno" aria-pressed="false" aria-label="Reto" title="Reto">
+          <svg viewBox="0 0 24 24"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0zM17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg></button>
+      </div>
+      <div class="info">
+        <p id="estado">Cargando o mapa…</p>
+        <div class="accion" id="accion" hidden>
+          <select id="nivel" aria-label="Dificultade">
+            <option value="facil">Fácil</option>
+            <option value="medio" selected>Medio</option>
+            <option value="dificil">Difícil</option>
+            <option value="perfecto">Perfecto</option>
+          </select>
+          <button id="comezar">Comezar</button>
+          <button id="verRanking" class="icona" aria-label="Ver o ranking" title="Ranking" hidden>
+            <svg viewBox="0 0 24 24"><path d="M4 20V13h4v7M10 20V8h4v12M16 20v-9h4v9M3 20h18"/></svg></button>
+        </div>
+      </div>
+    </div>
+    <div class="filtro">
+      <span class="etq">Filtro</span>
+      <svg id="minimapa" viewBox="0 0 800 820" role="group" aria-label="Filtro de provincias: toca unha para activala ou desactivala"></svg>
+      <span id="zonaTxt">Toda Galicia</span>
+    </div>
+  </div>
+</header>
+<main>
+  <svg id="mapa" viewBox="0 0 800 820" preserveAspectRatio="xMidYMid meet"></svg>
+  <div class="barra" id="ficha"><b id="fnome"></b><span id="fprov"></span></div>
+  <div class="barra" id="xogo">
+    <span id="pregunta">Onde está…</span>
+    <span id="obxectivo"></span>
+    <div id="aviso" aria-live="polite"></div>
+    <div class="datos"><span id="contador"></span><span id="reloxo">0:00</span><button id="saír">Deixar</button></div>
+  </div>
+  <div class="barra" id="arredores">
+    <h3 id="aTitulo"></h3>
+    <p id="aTexto"></p>
+    <span id="aObx" style="display:none;font-family:'Bricolage Grotesque',system-ui,sans-serif;font-weight:800;font-size:1.45rem"></span>
+    <div id="aAviso" style="min-height:1.3em;font-weight:700;margin-top:4px"></div>
+    <div class="botons"><button id="aDeixar">Deixar</button><button id="aPrin" class="prin"></button></div>
+  </div>
+  <div id="fin"><div class="caixa">
+    <h2 id="finTitulo">Rematado</h2>
+    <div id="finSub" style="color:var(--suave)"></div>
+    <div class="cifras">
+      <div><b id="fAcertos"></b><span>atopados</span></div>
+      <div><b id="fErros"></b><span>erros</span></div>
+      <div><b id="fPuntos"></b><span>puntos</span></div>
+      <div><b id="fTempo"></b><span>tempo</span></div>
+    </div>
+    <div id="record"></div>
+    <div id="envio" hidden>
+      <div class="fila" style="margin-top:12px">
+        <input id="alias" maxlength="20" placeholder="O teu alias" autocomplete="nickname" aria-label="Alias para o ranking">
+        <button id="gardar" class="prin">Gardar no ranking</button>
+      </div>
+      <div id="envioEstado" class="nota"></div>
+    </div>
+    <div class="fila" style="margin-top:14px">
+      <button id="pechar">Volver</button>
+      <button id="outra" class="prin">Xogar outra vez</button>
+    </div>
+  </div></div>
+  <div id="ranking" class="capa"><div class="caixa">
+    <h2>Ranking do Reto</h2>
+    <div class="fila" style="margin-top:10px">
+      <select id="rZona" aria-label="Zona">
+        <option value="todo">Toda Galicia</option><option value="15">A Coruña</option><option value="27">Lugo</option>
+        <option value="32">Ourense</option><option value="36">Pontevedra</option>
+      </select>
+      <select id="rNivel" aria-label="Nivel">
+        <option value="facil">Fácil</option><option value="medio">Medio</option><option value="dificil">Difícil</option><option value="perfecto">Perfecto</option>
+      </select>
+    </div>
+    <ol id="rLista" class="lista"></ol>
+    <div id="rEstado" class="nota"></div>
+    <div class="fila" style="margin-top:12px"><button id="rPechar">Pechar</button></div>
+  </div></div>
+</main>
+<script>
+const PROV = {"15":"A Coruña","27":"Lugo","32":"Ourense","36":"Pontevedra"};
+// Comarcas oficiais (Mapa Comarcal de Galicia). Códigos INE tomados da táboa do FOGGA (PAC 2024).
+const COMARCAS = {
+ "A Coruña":[15001,15008,15017,15021,15030,15031,15058],"Santiago":[15002,15012,15013,15078,15082,15089],
+ "Betanzos":[15003,15009,15027,15032,15039,15048,15064,15090,15091,15902],"Ferrol":[15004,15022,15035,15036,15049,15051,15054,15055,15076,15081,15087],
+ "Arzúa":[15006,15010,15066,15085],"Barbanza":[15011,15067,15072,15073],"Eume":[15015,15018,15050,15069,15070],
+ "Terra de Soneira":[15016],"Bergantiños":[15019,15040,15041],"Muros":[15020,15053],"Fisterra":[15023,15028,15034,15037,15052],
+ "Ordes":[15024,15038,15047,15059,15060,15084,15086],"Ortegal":[15025,15044,15061,15901],"O Sar":[15033,15065,15074],
+ "Noia":[15042,15057,15062,15071],"Xallas":[15045],"Terra de Melide":[15046,15079,15080,15083],"A Barcala":[15056],
+ "A Terra Chá":[27001,27007,27010,27015,27021,27022,27033,27044,27065],"A Mariña Central":[27002,27019,27027,27030,27063,27902],
+ "A Ulloa":[27003,27032,27040],"A Fonsagrada":[27004,27018,27035],"A Mariña Oriental":[27005,27048,27051,27061],
+ "Os Ancares":[27006,27012,27034,27037,27045,27901],"Terra de Lemos":[27008,27031,27041,27047,27058,27059],
+ "Chantada":[27009,27016,27060],"Lugo":[27011,27014,27020,27023,27028,27039,27049],"A Mariña Occidental":[27013,27025,27038,27064,27066],
+ "Quiroga":[27017,27050,27052],"Sarria":[27024,27026,27042,27043,27055,27057,27062],"Meira":[27029,27046,27053,27054],
+ "Allariz-Maceda":[32001,32007,32036,32037,32043,32055],"Ourense":[32002,32008,32026,32031,32052,32054,32058,32059,32079,32081,32087],
+ "O Ribeiro":[32003,32004,32010,32022,32025,32027,32040,32046,32069],"A Limia":[32005,32012,32016,32032,32062,32067,32077,32082,32089],
+ "Baixa Limia":[32006,32030,32041,32042,32051],"Valdeorras":[32009,32015,32017,32038,32060,32072,32073,32083,32088],
+ "O Carballiño":[32011,32013,32019,32035,32045,32061,32065,32074,32076],"Terra de Celanova":[32014,32020,32024,32033,32047,32056,32064,32066,32068,32084],
+ "Verín":[32021,32028,32039,32050,32053,32071,32085,32091],"Terra de Caldelas":[32023,32049,32057,32080],
+ "Terra de Trives":[32029,32044,32063,32070],"Viana":[32034,32048,32086,32092],
+ "A Paradanta":[36001,36009,36013,36014],"Pontevedra":[36002,36007,36025,36038,36041,36043,36058,36902],
+ "Vigo":[36003,36019,36021,36033,36035,36037,36039,36045,36053,36057],"O Morrazo":[36004,36008,36026,36029],
+ "Caldas":[36005,36015,36032,36040,36044,36056],"O Salnés":[36006,36022,36027,36028,36046,36051,36060,36061],
+ "O Condado":[36030,36034,36042,36050],"Deza":[36016,36020,36024,36047,36052,36059],
+ "Tabeirós-Terra de Montes":[36017,36018],"O Baixo Miño":[36023,36036,36055]
+};
+// Os que non aparecen nesa táboa, por nome
+const COMARCA_NOME = {
+ "Arteixo":"A Coruña","Sada":"A Coruña","Baña":"A Barcala","Val do Dubra":"A Barcala","Cabana de Bergantiños":"Bergantiños",
+ "Coristanco":"Bergantiños","Malpica de Bergantiños":"Bergantiños","Ponteceso":"Bergantiños","Santa Comba":"Xallas",
+ "Vimianzo":"Terra de Soneira","Zas":"Terra de Soneira","Oza dos Ríos":"Betanzos","Cesuras":"Betanzos","Rábade":"Lugo",
+ "Carballeda de Avia":"O Ribeiro","San Cibrao das Viñas":"Ourense","Sarreaus":"A Limia","Vilar de Santos":"A Limia",
+ "Catoira":"Caldas","Mondariz-Balneario":"O Condado","O Rosal":"O Baixo Miño","Tomiño":"O Baixo Miño",
+ "Salceda de Caselas":"Vigo","A Illa de Arousa":"O Salnés","Cerdedo":"Tabeirós-Terra de Montes","Cotobade":"Pontevedra"
+};
+// Cambios de nome oficial do Decreto 27/2026 (Nomenclátor de Galicia, en vigor desde o 11/04/2026)
+const NOMES_2026_COD = {"36009":"A Caniza","36008":"Cangas de Morrazo","32071":"O Riós","15071":"O Porto do Son",
+ "36007":"O Campo Lameiro","27053":"A Ribeira de Piquín","32023":"O Castro de Caldelas","27044":"Pastoriza",
+ "27002":"Alfoz de Castro de Ouro","36902":"Cerdedo Cotobade","15902":"Oza Cesuras"};
+const NOMES_2026_NOME = {"A Cañiza":"A Caniza","Cangas":"Cangas de Morrazo","Cangas do Morrazo":"Cangas de Morrazo","Riós":"O Riós",
+ "Porto do Son":"O Porto do Son","Campo Lameiro":"O Campo Lameiro","Ribeira de Piquín":"A Ribeira de Piquín",
+ "Castro Caldelas":"O Castro de Caldelas","A Pastoriza":"Pastoriza","Alfoz":"Alfoz de Castro de Ouro",
+ "Cerdedo-Cotobade":"Cerdedo Cotobade","Oza-Cesuras":"Oza Cesuras","Mondariz-Balneario":"Mondariz Balneario"};
+// "da Coruña", "do Sar", "dos Ancares", "de Lugo"
+const de = n => /^A /.test(n) ? "da " + n.slice(2) : /^O /.test(n) ? "do " + n.slice(2) : /^As /.test(n) ? "das " + n.slice(3) : /^Os /.test(n) ? "dos " + n.slice(3) : "de " + n;
+const chaveNome = n => n.replace(/^(A|O|As|Os)\s+/i,"").replace(/,\s*(A|O|As|Os)$/i,"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z]/g,"");
+const COD2COM = {}; for (const [c, l] of Object.entries(COMARCAS)) l.forEach(k => COD2COM[String(k)] = c);
+const NOM2COM = {}; for (const [n, c] of Object.entries(COMARCA_NOME)) NOM2COM[chaveNome(n)] = c;
+// Intentos por concello e tamaño da pista (en comarcas) tras cada fallo
+const NIVEIS = {
+  facil:{nome:"Fácil", intentos:4, pistas:[6,3,1]},
+  medio:{nome:"Medio", intentos:3, pistas:[4,1]},
+  dificil:{nome:"Difícil", intentos:2, pistas:[]},
+  perfecto:{nome:"Perfecto", intentos:1, pistas:[]}
+};
+const FONTES = [
+  async () => (await import("https://cdn.jsdelivr.net/npm/es-atlas@0.6.0/es/municipalities.json/+esm")).default,
+  async () => { const r = await fetch("https://unpkg.com/es-atlas@0.6.0/es/municipalities.json"); if(!r.ok) throw 0; return r.json(); },
+  async () => { const r = await fetch("https://cdn.jsdelivr.net/npm/es-atlas@0.6.0/es/municipalities.json"); if(!r.ok) throw 0; return r.json(); }
+];
+const $ = id => document.getElementById(id);
+const pr = d => String(d.id).slice(0,2);
+const W = 800, H = 820;
+let modo = "aprender", nivel = "medio", xogo = null;
+const provs = new Set(Object.keys(PROV));
+
+async function cargar(){
+  for (const f of FONTES){ try { const t = await f(); if (t && t.objects) return t; } catch(e){} }
+  throw new Error("sen datos");
+}
+
+cargar().then(topo => {
+  const xeoms = topo.objects.municipalities.geometries.filter(g => PROV[String(g.id).slice(0,2)]);
+  const obx = {type:"GeometryCollection", geometries:xeoms};
+  const fc = topojson.feature(topo, obx);
+  const nomeCorrido = n => { const m = n.match(/^(.*),\s*(A|O|As|Os)$/); return m ? `${m[2]} ${m[1]}` : n; };
+  const porNome = {}; for (const [a,b] of Object.entries(NOMES_2026_NOME)) porNome[chaveNome(a)] = b;
+  fc.features.forEach(f => {
+    const n = nomeCorrido(f.properties.name);
+    f.properties.name = NOMES_2026_COD[String(f.id)] || porNome[chaveNome(n)] || n;
+  });
+  const proj = d3.geoMercator().fitExtent([[10,10],[W-10,H-10]], fc);
+  const path = d3.geoPath(proj);
+  const svg = d3.select("#mapa");
+  const g = svg.append("g");
+
+  const pezas = g.selectAll("path.concello").data(fc.features).join("path")
+    .attr("class","concello").attr("d",path)
+    .attr("fill", d => `var(--c${pr(d)})`)
+    .on("click", (e,d) => tocar(d, e.currentTarget));
+
+  g.append("path").attr("class","prov")
+    .attr("d", path(topojson.mesh(topo, obx, (a,b) => a!==b && String(a.id).slice(0,2)!==String(b.id).slice(0,2))));
+
+  const capaEtiq = g.append("g");
+  let kActual = 1;
+  const zoom = d3.zoom().scaleExtent([1,14]).translateExtent([[-W*.35,-H*.35],[W*1.35,H*1.35]])
+    .on("zoom", e => { g.attr("transform", e.transform); kActual = e.transform.k; axustarEtiquetas(); });
+  // Tamaño das etiquetas en píxeles reais da pantalla, sexa cal sexa o zoom
+  function escalaPantalla(){ const r = document.getElementById("mapa").getBoundingClientRect(); return Math.min(r.width/W, r.height/H) || 1; }
+  function axustarEtiquetas(sel){
+    const f = 1 / (kActual * escalaPantalla());
+    (sel || capaEtiq.selectAll("text")).attr("font-size", 14*f).attr("stroke-width", 3.5*f);
+  }
+  window.addEventListener("resize", () => axustarEtiquetas());
+  svg.call(zoom);
+
+  function encadrar(bounds, max=10, marxe=.85){
+    const [[x0,y0],[x1,y1]] = bounds;
+    const k = Math.max(1, Math.min(max, marxe / Math.max((x1-x0)/W, (y1-y0)/H)));
+    svg.transition().duration(650).call(zoom.transform,
+      d3.zoomIdentity.translate(W/2,H/2).scale(k).translate(-(x0+x1)/2, -(y0+y1)/2));
+  }
+
+  // Comarca de cada concello
+  const comarca = new Map();
+  const senComarca = [];
+  fc.features.forEach(f => {
+    const c = COD2COM[String(f.id)] || NOM2COM[chaveNome(f.properties.name)];
+    if (c) comarca.set(f, c); else senComarca.push(f.properties.name);
+  });
+  const viz = topojson.neighbors(xeoms);
+  const idx = new Map(fc.features.map((f,i) => [f,i]));
+  const centro = new Map(fc.features.map(f => [f, path.centroid(f)]));
+  const comVeci = new Map(), comCentro = new Map(), comProv = new Map();
+  fc.features.forEach((f,i) => {
+    const c = comarca.get(f); if (!c) return;
+    if (!comVeci.has(c)) { comVeci.set(c, new Set()); comCentro.set(c, [0,0,0]); comProv.set(c, pr(f)); }
+    const cc = comCentro.get(c), [x,y] = centro.get(f); cc[0]+=x; cc[1]+=y; cc[2]++;
+    viz[i].forEach(j => { const o = comarca.get(fc.features[j]); if (o && o!==c) comVeci.get(c).add(o); });
+  });
+  comCentro.forEach(v => { v[0]/=v[2]; v[1]/=v[2]; });
+
+  const enFiltro = d => provs.has(pr(d));
+  const todas = () => provs.size === 4;
+  const nomeZona = () => {
+    if (todas()) return "Toda Galicia";
+    const l = Object.keys(PROV).filter(p => provs.has(p)).map(p => PROV[p]);
+    return l.length === 1 ? "Só " + l[0] : l.slice(0,-1).join(", ") + " e " + l[l.length-1];
+  };
+
+  // Minimapa de provincias: cada unha actívase ou desactívase ao tocala
+  const mini = d3.select("#minimapa");
+  const pprov = mini.selectAll("path").data(Object.keys(PROV)).join("path")
+    .attr("d", cp => path(topojson.merge(topo, xeoms.filter(g => String(g.id).slice(0,2) === cp))))
+    .attr("fill", cp => `var(--c${cp})`)
+    .attr("tabindex", 0).attr("role", "button")
+    .attr("aria-label", cp => PROV[cp])
+    .on("click", (e, cp) => alternarProv(cp))
+    .on("keydown", (e, cp) => { if (e.key === "Enter" || e.key === " "){ e.preventDefault(); alternarProv(cp); } });
+  function pintarMini(){
+    pprov.classed("off", cp => !provs.has(cp)).attr("aria-pressed", cp => provs.has(cp));
+    $("zonaTxt").textContent = nomeZona();
+  }
+  function alternarProv(cp){
+    if (provs.has(cp)){ if (provs.size === 1) return; provs.delete(cp); } else provs.add(cp);
+    pintarMini(); limpar(); aplicarFiltro(); porModo();
+  }
+  pintarMini();
+
+  // Identidade: o mesmo mapa de provincias como logo e icona da pestana
+  const COR_FIXA = {"15":"#8fb39a","27":"#7c9fc4","32":"#b98f7a","36":"#cdb772"};
+  const formas = Object.keys(PROV).map(cp => [cp, path(topojson.merge(topo, xeoms.filter(g => String(g.id).slice(0,2) === cp)))]);
+  d3.select("#logo").selectAll("path").data(formas).join("path").attr("d", f => f[1]).attr("fill", f => `var(--c${f[0]})`);
+  try {
+    const svgIcona = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-20 -10 840 840">` +
+      formas.map(([cp, d]) => `<path d="${d}" fill="${COR_FIXA[cp]}" stroke="#fff" stroke-width="10"/>`).join("") + `</svg>`;
+    document.querySelectorAll('link[rel="icon"]').forEach(l => l.remove());
+    const l = document.createElement("link"); l.rel = "icon"; l.type = "image/svg+xml";
+    l.href = "data:image/svg+xml," + encodeURIComponent(svgIcona); document.head.appendChild(l);
+  } catch(e){}
+  const activos = () => fc.features.filter(enFiltro);
+
+  function aplicarFiltro(){
+    pezas.classed("fora", d => !enFiltro(d));
+    encadrarZona();
+  }
+  function encadrarZona(){
+    if (todas()) encadrar([[0,0],[W,H]], 1, 1);
+    else encadrar(path.bounds({type:"FeatureCollection", features:activos()}), 6, .92);
+  }
+
+  function limpar(){ pezas.classed("sel ok1 ok2 ko erro sinala sabido fronte lonxe apagado", false); capaEtiq.selectAll("*").remove(); }
+
+  function porModo(){
+    veci = null; $("arredores").classList.remove("visible");
+    document.querySelectorAll(".modos button").forEach(b => b.setAttribute("aria-pressed", b.dataset.modo===modo));
+    const xogable = modo==="dez" || modo==="pleno";
+    $("accion").hidden = !xogable;
+    $("verRanking").hidden = modo!=="pleno";
+    document.querySelector(".info").classList.toggle("xogo", xogable);
+    if (modo==="aprender" || modo==="arredores"){
+      $("ficha").classList.add("visible","baleira");
+      $("fnome").textContent = modo==="aprender" ? "Toca un concello" : "Toca o concello de partida";
+      $("fprov").textContent = "";
+    } else $("ficha").classList.remove("visible");
+    limpar();
+    const n = activos().length;
+    const texto = modo==="aprender" ? `Toca calquera dos ${n} concellos para ver o seu nome e a súa comarca.`
+      : modo==="arredores" ? "Escolle un concello de partida e aprende os seus veciños, volta a volta."
+      : modo==="dez" ? `10 concellos ao chou: ${textoNivel()}.`
+      : `Os ${n} concellos contra o reloxo: ${textoNivel()}.`;
+    const nomeModo = {aprender:"Pasear", arredores:"Arredores", dez:"De 10 en 10", pleno:"Reto"}[modo];
+    const b = document.createElement("b"); b.textContent = nomeModo + ". ";
+    $("estado").replaceChildren(b, texto + (senComarca.length ? ` (Sen comarca asignada: ${senComarca.join(", ")})` : ""));
+  }
+
+  // ---- Aprender ----
+  function amosar(d){
+    pezas.classed("sel", x => x===d);
+    $("ficha").classList.add("visible"); $("ficha").classList.remove("baleira");
+    $("fnome").textContent = d.properties.name;
+    $("fprov").textContent = (comarca.get(d) ? "Comarca " + de(comarca.get(d)) + ", " : "") + PROV[pr(d)];
+  }
+
+  // ---- Niveis e pistas por comarcas ----
+  function textoNivel(){
+    return {facil:"4 intentos e pistas", medio:"3 intentos e pistas", dificil:"2 intentos, sen pistas nin cores", perfecto:"ningún fallo, sen cores"}[nivel];
+  }
+
+  // Orde de crecemento: parte da comarca correcta e medra cara a unha comarca "imán" ao chou,
+  // para que a resposta non quede sempre no medio da zona iluminada.
+  function ordeComarcas(cT){
+    const permitidas = new Set(activos().map(f => comarca.get(f)).filter(Boolean));
+    const dist = new Map([[cT,0]]), q = [cT];
+    while (q.length){ const c = q.shift(); comVeci.get(c).forEach(o => { if (permitidas.has(o) && !dist.has(o)){ dist.set(o, dist.get(c)+1); q.push(o); } }); }
+    let cands = [...dist].filter(([c,k]) => k>=2 && k<=3).map(([c]) => c);
+    if (!cands.length) cands = [...dist].filter(([c,k]) => k>=1).map(([c]) => c);
+    if (!cands.length) return [cT];
+    const iman = comCentro.get(cands[Math.floor(Math.random()*cands.length)]);
+    const orde = [cT], xa = new Set(orde);
+    while (orde.length < 6){
+      const fronte = new Set();
+      orde.forEach(c => comVeci.get(c).forEach(o => { if (permitidas.has(o) && !xa.has(o)) fronte.add(o); }));
+      if (!fronte.size) break;
+      let mellor = null, md = Infinity;
+      fronte.forEach(o => { const [x,y] = comCentro.get(o); const dd = Math.hypot(x-iman[0], y-iman[1]) * (0.8 + Math.random()*0.4); if (dd < md){ md = dd; mellor = o; } });
+      orde.push(mellor); xa.add(mellor);
+    }
+    return orde;
+  }
+
+  function pista(fallos){
+    const tam = NIVEIS[nivel].pistas[fallos-1];
+    const cT = comarca.get(xogo.actual);
+    if (!tam || !cT) return "";
+    if (!xogo.orde) xogo.orde = ordeComarcas(cT);
+    const zona = new Set(xogo.orde.slice(0, tam));
+    pezas.classed("apagado", d => enFiltro(d) && !zona.has(comarca.get(d)));
+    xogo.conPista = true;
+    encadrar(path.bounds({type:"FeatureCollection", features:activos().filter(d => zona.has(comarca.get(d)))}), 9, .85);
+    return zona.size===1 ? ` Pista: está na comarca ${de(cT)}.` : ` Pista: queda só a zona iluminada.`;
+  }
+
+  function quitarPista(){
+    if (!xogo || !xogo.conPista) return;
+    pezas.classed("apagado", false); xogo.conPista = false;
+    encadrarZona();
+  }
+
+  // ---- Xogo ----
+  const baralla = a => { a = a.slice(); for (let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; };
+  const mmss = ms => { const cs=Math.floor(ms/10), s=Math.floor(cs/100); return `${Math.floor(s/60)}:${String(s%60).padStart(2,"0")},${String(cs%100).padStart(2,"0")}`; };
+
+  function comezar(){
+    limpar();
+    const lista = baralla(activos());
+    const cola = modo==="dez" ? lista.slice(0,10) : lista;
+    xogo = {cola, total:cola.length, feitos:0, acertos:0, puntos:0, fallos:0, erros:0, intentos:0, actual:null, t0:Date.now(), bloqueo:false, resoltos:new Set()};
+    xogo.timer = setInterval(() => $("reloxo").textContent = mmss(Date.now()-xogo.t0), 31);
+    $("controis").hidden = true;
+    $("ficha").classList.remove("visible"); $("xogo").classList.add("visible");
+    document.querySelector("main").classList.toggle("neutro", nivel==="dificil" || nivel==="perfecto");
+    seguinte();
+  }
+
+  function seguinte(){
+    if (!xogo.cola.length) return rematar(true);
+    xogo.actual = xogo.cola.pop(); xogo.intentos = 0; xogo.bloqueo = false; xogo.orde = null;
+    $("obxectivo").textContent = xogo.actual.properties.name;
+    contador();
+  }
+
+  function contador(){
+    $("contador").textContent = `${xogo.feitos+1} de ${xogo.total}, ${xogo.erros} ${xogo.erros===1 ? "erro" : "erros"}`;
+  }
+
+  function aviso(txt, clase){ const a=$("aviso"); a.textContent=txt; a.className=clase||""; }
+
+  function tocar(d, el){
+    if (!xogo){ if (modo==="aprender") amosar(d); else if (modo==="arredores") tocarVeci(d, el); return; }
+    if (xogo.bloqueo) return;
+    if (xogo.resoltos.has(d)){ aviso(`Iso é ${d.properties.name}`, ""); return; }
+    const obx = xogo.actual;
+    if (d === obx){
+      const clase = xogo.intentos===0 ? "ok1" : "ok2";
+      d3.select(el).classed(clase, true);
+      xogo.puntos += [3,2,1,1][xogo.intentos]; xogo.acertos++;
+      aviso(xogo.intentos===0 ? "Ben!" : "Atopado", "ben");
+      pechar(obx, 450);
+    } else {
+      xogo.intentos++; xogo.erros++; contador();
+      d3.select(el).classed("erro", false); void el.getBoundingClientRect(); d3.select(el).classed("erro", true);
+      const max = NIVEIS[nivel].intentos;
+      if (xogo.intentos >= max){
+        xogo.fallos++;
+        quitarPista();
+        const sel = pezas.filter(x => x===obx).classed("sinala", true);
+        aviso(`Iso é ${d.properties.name}. ${obx.properties.name} estaba aquí.`, "mal");
+        setTimeout(() => sel.classed("sinala", false).classed("ko", true), 1800);
+        if (nivel==="perfecto"){
+          xogo.bloqueo = true;
+          setTimeout(() => { if (xogo) rematar(true, "fallo"); }, 2200);
+        } else pechar(obx, 2000);
+      } else {
+        const resto = max - xogo.intentos;
+        aviso(`Iso é ${d.properties.name}. ${resto===1 ? "Última oportunidade." : `Quédanche ${resto}.`}` + pista(xogo.intentos), "mal");
+      }
+    }
+  }
+
+  function pechar(obx, espera){
+    xogo.bloqueo = true; xogo.resoltos.add(obx); xogo.feitos++;
+    setTimeout(() => { if (xogo){ aviso(""); quitarPista(); seguinte(); } }, espera);
+  }
+
+  function chave(){ return `concellos:${modo}:${nivel}:${[...provs].sort().join("-")}`; }
+
+  function rematar(completo, motivo){
+    clearInterval(xogo.timer);
+    const tempo = Date.now()-xogo.t0;
+    $("xogo").classList.remove("visible");
+    $("finTitulo").textContent = motivo==="fallo" ? "Fin da partida" : !completo ? "Partida deixada" : xogo.acertos===xogo.total && xogo.fallos===0 ? "Pleno!" : "Rematado";
+    $("finSub").textContent = `${modo==="dez" ? "De 10 en 10" : "Reto"}, ${nomeZona()}, nivel ${NIVEIS[nivel].nome}`;
+    $("fAcertos").textContent = `${xogo.acertos}/${xogo.total}`;
+    $("fPuntos").textContent = xogo.puntos; $("fErros").textContent = xogo.erros;
+    $("fTempo").textContent = mmss(tempo);
+    let txt = "";
+    if (completo){
+      try {
+        const vello = JSON.parse(localStorage.getItem(chave()) || "null");
+        const agora = {puntos:xogo.puntos, acertos:xogo.acertos, erros:xogo.erros, tempo};
+        const mellor = !vello || (modo==="pleno"
+          ? (agora.acertos - (vello.acertos ?? 0)) || ((vello.erros ?? 1e9) - agora.erros) || (vello.tempo - agora.tempo)
+          : (agora.puntos - vello.puntos) || (vello.tempo - agora.tempo)) > 0;
+        if (mellor){ localStorage.setItem(chave(), JSON.stringify(agora)); txt = vello ? "Novo récord persoal!" : "Primeira marca gardada."; }
+        else txt = modo==="pleno"
+          ? `O teu récord: ${vello.acertos ?? "?"} atopados, ${vello.erros ?? "?"} erros, ${mmss(vello.tempo)}`
+          : `O teu récord: ${vello.puntos} puntos en ${mmss(vello.tempo)}`;
+      } catch(e){}
+    }
+    $("record").textContent = txt;
+    // Ranking: só no Reto rematado, con toda Galicia ou unha soa provincia
+    const zr = zonaRanking();
+    ultima = {nivel, zona:zr, acertos:xogo.acertos, total:xogo.total, erros:xogo.erros, tempo};
+    const pode = modo==="pleno" && completo && zr !== null && xogo.acertos > 0;
+    $("envio").hidden = !pode; $("gardar").disabled = false;
+    $("envioEstado").textContent = pode ? "" : "";
+    try { $("alias").value = localStorage.getItem("concellos:alias") || ""; } catch(e){}
+    $("fin").classList.add("visible");
+    xogo = null;
+  }
+
+  function volver(){
+    $("fin").classList.remove("visible");
+    $("controis").hidden = false;
+    document.querySelector("main").classList.remove("neutro");
+    porModo();
+  }
+
+  // ---- Arredores: aprender a partir dun concello e os seus veciños ----
+  const POR_VOLTA = 8;
+  let veci = null;
+
+  function etiquetar(lista, clase){
+    capaEtiq.selectAll("text." + clase).data(lista, d => d.id).join("text")
+      .attr("class", "etiqueta " + clase)
+      .attr("x", d => centro.get(d)[0]).attr("y", d => centro.get(d)[1])
+      .call(axustarEtiquetas)
+      .text(d => d.properties.name);
+  }
+
+  function pintarVeci(){
+    const fronte = new Set(veci.fronte);
+    pezas.classed("sabido", d => veci.sabidos.has(d))
+         .classed("fronte", d => fronte.has(d))
+         .classed("lonxe", d => !veci.sabidos.has(d) && !fronte.has(d));
+  }
+
+  function novaVolta(){
+    const dentro = new Set(activos());
+    const cand = new Set();
+    veci.sabidos.forEach(d => viz[idx.get(d)].forEach(i => {
+      const v = fc.features[i];
+      if (dentro.has(v) && !veci.sabidos.has(v)) cand.add(v);
+    }));
+    const [x0,y0] = centro.get(veci.inicio);
+    const dist = d => { const [x,y] = centro.get(d); return (x-x0)**2 + (y-y0)**2; };
+    const pend = veci.pendentes.filter(d => cand.has(d));
+    const resto = [...cand].filter(d => !veci.pendentes.includes(d)).sort((a,b) => dist(a)-dist(b));
+    veci.fronte = [...pend, ...resto].slice(0, POR_VOLTA);
+    capaEtiq.selectAll("*").remove();
+    etiquetar([...veci.sabidos], "vella");
+    if (!veci.fronte.length){
+      pintarVeci();
+      barraVeci("Completado!", `Aprendiches os ${veci.sabidos.size} concellos da zona partindo ${de(veci.inicio.properties.name)}.`, "Comezar outro");
+      veci.fase = "fin"; return;
+    }
+    veci.volta++; veci.fase = "estudo";
+    pintarVeci();
+    etiquetar(veci.fronte, "nova");
+    encadrar(path.bounds({type:"FeatureCollection", features:[...veci.sabidos, ...veci.fronte]}), 12, .8);
+    barraVeci(`Volta ${veci.volta}: estuda`, `Estes ${veci.fronte.length} concellos rodean o que xa sabes. Cando os teñas, pregúntoche.`, "Pregúntame");
+  }
+
+  function barraVeci(titulo, texto, botón){
+    $("aTitulo").textContent = titulo; $("aTexto").textContent = texto;
+    $("aObx").style.display = "none"; $("aAviso").textContent = "";
+    $("aPrin").textContent = botón; $("aPrin").hidden = false;
+    $("arredores").classList.add("visible");
+  }
+
+  function preguntarVeci(){
+    veci.fase = "pregunta";
+    capaEtiq.selectAll("text.nova").remove();
+    veci.cola = baralla(veci.fronte); veci.acertosVolta = 0; veci.total = veci.cola.length;
+    $("aPrin").hidden = true;
+    seguinteVeci();
+  }
+
+  function seguinteVeci(){
+    if (!veci.cola.length){
+      veci.fase = "resumo";
+      const falta = veci.total - veci.acertosVolta;
+      barraVeci(`Volta ${veci.volta} rematada`,
+        `Acertaches ${veci.acertosVolta} de ${veci.total}. Xa sabes ${veci.sabidos.size} concellos.` + (falta ? ` Os que fallaches volverán na seguinte volta.` : ""),
+        "Seguinte volta");
+      return;
+    }
+    veci.actual = veci.cola.pop(); veci.intentos = 0; veci.bloqueo = false;
+    $("aTitulo").textContent = `Volta ${veci.volta}: ${veci.total - veci.cola.length} de ${veci.total}`;
+    $("aTexto").textContent = "Onde está…";
+    $("aObx").style.display = "block"; $("aObx").textContent = veci.actual.properties.name;
+  }
+
+  function avisoVeci(txt, ben){ const a = $("aAviso"); a.textContent = txt; a.style.color = ben ? "var(--ok)" : "var(--ko)"; }
+
+  function tocarVeci(d, el){
+    if (!veci){
+      veci = {inicio:d, sabidos:new Set([d]), pendentes:[], fronte:[], volta:0};
+      $("ficha").classList.remove("visible");
+      novaVolta(); return;
+    }
+    if (veci.fase === "estudo"){ avisoVeci(d.properties.name, true); return; }
+    if (veci.fase !== "pregunta" || veci.bloqueo) return;
+    const obx = veci.actual;
+    if (d === obx){
+      veci.sabidos.add(d); veci.acertosVolta++;
+      veci.pendentes = veci.pendentes.filter(x => x !== d);
+      pintarVeci(); etiquetar([...veci.sabidos], "vella");
+      avisoVeci(veci.intentos ? "Atopado" : "Ben!", true);
+      veci.bloqueo = true; setTimeout(() => { if (veci){ $("aAviso").textContent = ""; seguinteVeci(); } }, 500);
+    } else {
+      veci.intentos++;
+      d3.select(el).classed("erro", false); void el.getBoundingClientRect(); d3.select(el).classed("erro", true);
+      if (veci.intentos >= 3){
+        if (!veci.pendentes.includes(obx)) veci.pendentes.push(obx);
+        const sel = pezas.filter(x => x === obx).classed("sinala", true);
+        avisoVeci(`Iso é ${d.properties.name}. ${obx.properties.name} estaba aquí.`, false);
+        veci.bloqueo = true;
+        setTimeout(() => { sel.classed("sinala", false); if (veci){ $("aAviso").textContent = ""; seguinteVeci(); } }, 2000);
+      } else {
+        avisoVeci(`Iso é ${d.properties.name}. Quédanche ${3 - veci.intentos}.`, false);
+      }
+    }
+  }
+
+  $("aPrin").addEventListener("click", () => {
+    if (!veci) return;
+    if (veci.fase === "estudo") preguntarVeci();
+    else if (veci.fase === "resumo") novaVolta();
+    else if (veci.fase === "fin"){ limpar(); aplicarFiltro(); porModo(); }
+  });
+  $("aDeixar").addEventListener("click", () => { limpar(); aplicarFiltro(); porModo(); });
+
+  document.querySelectorAll(".modos button").forEach(b => b.addEventListener("click", () => { modo = b.dataset.modo; limpar(); aplicarFiltro(); porModo(); }));
+  $("nivel").addEventListener("change", e => { nivel = e.target.value; porModo(); });
+  $("comezar").addEventListener("click", comezar);
+  $("saír").addEventListener("click", () => xogo && rematar(false));
+  $("pechar").addEventListener("click", volver);
+
+  // ---- Ranking (API en Vercel: /api/ranking) ----
+  const API = "/api/ranking";
+  let ultima = null, meuId = null;
+  function zonaRanking(){ return provs.size === 4 ? "todo" : provs.size === 1 ? [...provs][0] : null; }
+
+  function pintarLista(top){
+    const ol = $("rLista"); ol.replaceChildren();
+    if (!top.length){ $("rEstado").textContent = "Aínda non hai marcas. Sé o primeiro!"; return; }
+    $("rEstado").textContent = "";
+    top.forEach((e, i) => {
+      const li = document.createElement("li"); if (e.id === meuId) li.className = "eu";
+      const mk = (c, t) => { const x = document.createElement("span"); x.className = c; x.textContent = t; return x; };
+      li.append(mk("pos", i+1), mk("nom", e.alias), mk("tem", mmss(e.tempo)),
+        mk("det", `${e.acertos}/${e.total} atopados, ${e.erros} ${e.erros===1 ? "erro" : "erros"}`));
+      ol.appendChild(li);
+    });
+  }
+
+  async function cargarRanking(){
+    $("rEstado").textContent = "Cargando…"; $("rLista").replaceChildren();
+    try {
+      const r = await fetch(`${API}?nivel=${$("rNivel").value}&zona=${$("rZona").value}`);
+      if (!r.ok || !(r.headers.get("content-type")||"").includes("json")) throw 0;
+      pintarLista((await r.json()).top || []);
+    } catch(e){ $("rEstado").textContent = "O ranking só funciona na versión publicada en Vercel."; }
+  }
+
+  function abrirRanking(zona, niv){
+    $("rZona").value = zona || zonaRanking() || "todo"; $("rNivel").value = niv || nivel;
+    $("ranking").classList.add("visible"); cargarRanking();
+  }
+  $("verRanking").addEventListener("click", () => abrirRanking());
+  $("rZona").addEventListener("change", cargarRanking);
+  $("rNivel").addEventListener("change", cargarRanking);
+  $("rPechar").addEventListener("click", () => $("ranking").classList.remove("visible"));
+
+  $("gardar").addEventListener("click", async () => {
+    const alias = $("alias").value.trim();
+    if (!alias){ $("envioEstado").textContent = "Escribe un alias."; $("alias").focus(); return; }
+    try { localStorage.setItem("concellos:alias", alias); } catch(e){}
+    $("gardar").disabled = true; $("envioEstado").textContent = "Gardando…";
+    try {
+      const r = await fetch(API, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({...ultima, alias})});
+      if (!r.ok || !(r.headers.get("content-type")||"").includes("json")) throw 0;
+      const d = await r.json();
+      meuId = d.id;
+      $("envioEstado").textContent = d.posicion ? `Gardado: estás no posto ${d.posicion}.` : "Gardado.";
+      abrirRanking(ultima.zona, ultima.nivel);
+    } catch(e){
+      $("gardar").disabled = false;
+      $("envioEstado").textContent = "Non se puido gardar. O ranking só funciona na versión publicada en Vercel.";
+    }
+  });
+  $("outra").addEventListener("click", () => { $("fin").classList.remove("visible"); comezar(); });
+
+  porModo();
+}).catch(() => {
+  $("estado").textContent = "Non se puido descargar o mapa. Comproba a conexión e volve cargar a páxina.";
+});
+</script>
+</body>
+</html>
