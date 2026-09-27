@@ -29,7 +29,7 @@ Juego web para localizar los 313 concellos de Galicia.
 - Al terminar se puede compartir el resultado con cuadrados de colores (🟩 a la primera, 🟨 con fallos, 🟥 no encontrado).
 
 ## Onde teño as vacas?
-- **2 jugadores:** turnos alternos, ambos conectados. Cada uno esconde 6 vacas (no vecinas entre sí) y ataca las del otro. Vaca / pasto (vaca vecina) / tierra. Gana quien encuentra antes las 6.
+- **2 jugadores:** turnos alternos de 30 segundos (constante `TEMPO_QUENDA`); si se agota, pasa el turno. Ambos conectados. Cada uno esconde 6 vacas (no vecinas entre sí) y ataca las del otro. Vaca / pasto (vaca vecina) / tierra. Gana quien encuentra antes las 6.
 - **3 o 4 jugadores:** mapa común y rondas simultáneas de 40 segundos (constante `TEMPO_ROLDA` en `api/vacas.js`). Cada uno esconde 5 vacas (3 jugadores) o 4 (4 jugadores) y tira una vez por ronda; los resultados se revelan al cerrar la ronda. Un punto por cada vaca ajena encontrada; gana quien más puntos tiene cuando solo queda un equipo con vacas (o a las 40 rondas), y en empate quien menos vacas perdió. Quien no tira a tiempo pierde esa tirada.
 - Se crea una sala (código de 4 letras); los demás entran con el código o con el enlace `?sala=CODIGO`. Con 4 plazas, el creador puede empezar con 3.
 - Razas para elegir equipo: Rubia galega, Cachena, Frisona y Milka. Las partidas caducan a las 12 h.
