@@ -13,10 +13,16 @@ Juego web para localizar los 313 concellos de Galicia.
    Así el proyecto recibe la variable `REDIS_URL`. Las claves del ranking empiezan por `concellos:`, así que no chocan con los datos de otros proyectos.
    (También funciona con Upstash, con `KV_REST_API_URL` y `KV_REST_API_TOKEN`.)
 3. Vuelve a desplegar para que la función lea la variable.
-4. Si la dirección final no es `concellos.vercel.app`, cambia la etiqueta `og:image` de `index.html` para que apunte a la tuya.
+4. La dirección publicada es `https://concellosgz.vercel.app`; las etiquetas `og:url` y `og:image` de `index.html` ya apuntan ahí.
 
 ## Ranking
 - Solo en el modo Reto, al terminar la partida, con toda Galicia o una sola provincia.
 - Una tabla por nivel (Fácil, Medio, Difícil, Perfecto) y zona (Toda Galicia, A Coruña, Lugo, Ourense, Pontevedra).
 - Orden: más concellos encontrados, después menos errores y, en caso de empate, menos tiempo.
 - Se guardan las 100 mejores marcas de cada tabla y se muestran las 20 primeras.
+
+## Reto diario
+- Cada día (hora de Galicia) salen los mismos 10 concellos para todo el mundo; una sola oportunidad al día.
+- Reglas de nivel Medio: 3 intentos y pistas por comarcas. Puntos 3/2/1 según el intento.
+- Ranking del día: más puntos, luego menos errores, luego menos tiempo. Cada tabla se borra sola a los 45 días.
+- Al terminar se puede compartir el resultado con cuadrados de colores (🟩 a la primera, 🟨 con fallos, 🟥 no encontrado).
