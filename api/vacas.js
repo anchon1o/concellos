@@ -9,11 +9,13 @@ const URL_REST = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_U
 const TOKEN_REST = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
 const CADUCA = 60 * 60 * 12;
 const LETRAS = "ABCDEFGHJKLMNPQRSTUVWXYZ";
-const RAZAS = ["rubia", "cachena", "frisona", "milka"];
+const RAZAS = ["rubia", "cachena", "frisona", "milka", "vianesa", "frieiresa"];
+const ZONAS = ["todo", "15", "27", "32", "36"];
 const TEMPO_ROLDA = 40; // segundos por rolda (3-4 xogadores)
 const TEMPO_QUENDA = 30; // segundos por quenda (2 xogadores); se se esgota, pasa a quenda
 const MAX_ROLDAS = 40;
-const VACAS_POR_XOGADORES = { 2: 6, 3: 5, 4: 4 };
+// Vacas por partida: toda Galicia 6; unha provincia 4 (a dous) ou 3 (a tres ou catro)
+const vacasPara = (zona, n) => zona === "todo" ? 6 : (n === 2 ? 4 : 3);
 
 let cliente = null;
 function conectar() {
@@ -85,7 +87,10 @@ function comprobarRolda(p) {
   if (p.fase !== "xogando") return false;
   if (p.modo === "duelo") {
     if (!p.quendaInicio) { p.quendaInicio = Date.now(); return true; }
-    if (Date.now() - p.quendaInicio > TEMPO_QUENDA * 1000) { p.quen = 1 - p.quen; p.quendaInicio = Date.now(); p.saltos = (p.saltos || 0) + 1; return true; }
+    if (Date.now() - p.quendaInicio > TEMPO_QUENDA * 1000) {
+      if (p.desempate) { p.fase = "fin"; p.gañador = 0; return true; }
+      p.quen = 1 - p.quen; p.quendaInicio = Date.now(); p.saltos = (p.saltos || 0) + 1; return true;
+    }
     return false;
   }
   const todos = deben(p).every(i => p.actual[i]);
@@ -99,7 +104,7 @@ function vista(p, eu) {
   if (p.modo === "duelo") {
     const riv = p.xog[1 - eu];
     return {
-      modo: "duelo", sala: p.sala, fase: p.fase, v: p.v, eu, quen: p.quen, vacas: p.vacas, dist: p.dist, gañador: p.gañador,
+      modo: "duelo", sala: p.sala, fase: p.fase, v: p.v, eu, quen: p.quen, vacas: p.vacas, dist: p.dist, gañador: p.gañador, zona: p.zona || "todo", empate: !!p.empate, desempate: !!p.desempate,
       tempoQuenda: TEMPO_QUENDA, restante: p.fase === "xogando" ? Math.max(0, TEMPO_QUENDA * 1000 - (Date.now() - (p.quendaInicio || Date.now()))) : 0,
       nomes: p.xog.map(x => x.nome),
       meu: { vacas: min.vacas, listo: !!min.listo, tiros: min.tiros, atopadas: min.tiros.filter(t => t.r === "vaca").length, raza: min.raza },
@@ -108,7 +113,7 @@ function vista(p, eu) {
   }
   const a = atopadas(p);
   return {
-    modo: "roldas", sala: p.sala, fase: p.fase, v: p.v, eu, vacas: p.vacas, dist: p.dist, gañador: p.gañador, max: p.max, creador: 0,
+    modo: "roldas", sala: p.sala, fase: p.fase, v: p.v, eu, vacas: p.vacas, dist: p.dist, gañador: p.gañador, max: p.max, creador: 0, zona: p.zona || "todo",
     tempoRolda: TEMPO_ROLDA, rolda: p.roldas.length + 1, restante: p.fase === "xogando" ? Math.max(0, TEMPO_ROLDA * 1000 - (Date.now() - p.roldaInicio)) : 0,
     xogadores: p.xog.map((x, i) => ({ nome: x.nome, raza: x.raza, listo: !!x.listo, fora: x.fora, puntos: puntos(p, i), quedan: vivas(p, i).length, tirou: !!p.actual[i], vacas: p.fase === "fin" ? x.vacas : undefined })),
     meu: { vacas: min.vacas, listo: !!min.listo, raza: min.raza, tirada: p.actual[eu] ? p.actual[eu].id : null },
@@ -141,11 +146,12 @@ module.exports = async (req, res) => {
       if (!veci || typeof veci !== "object" || Object.keys(veci).length < 100) return res.status(400).json({ erro: "Faltan os datos do mapa." });
       const max = Math.min(4, Math.max(2, Math.floor(Number(b.xogadores)) || 2));
       const modo = max === 2 ? "duelo" : "roldas";
-      const vacas = VACAS_POR_XOGADORES[max];
-      const dist = Math.min(2, Math.max(1, Math.floor(Number(b.dist)) || 1));
+      const zona = ZONAS.includes(b.zona) ? b.zona : "todo";
+      const vacas = vacasPara(zona, max);
+      const dist = zona === "todo" ? 2 : 1;
       let sala; for (let i = 0; i < 5; i++) { sala = codigo(); if (!(await ler(sala))) break; }
       const token = crypto.randomUUID();
-      const p = { sala, modo, max, fase: "esperando", vacas, dist, veci, quen: 0, gañador: null, creada: Date.now(),
+      const p = { sala, modo, max, zona, fase: "esperando", vacas, dist, veci, quen: 0, gañador: null, creada: Date.now(),
         xog: [novoXogador(token, b.nome)], roldas: [], actual: {}, roldaInicio: 0 };
       await gardar(p);
       return res.status(200).json({ sala, token, eu: 0 });
@@ -161,7 +167,7 @@ module.exports = async (req, res) => {
       if (p.xog.length >= p.max) return res.status(409).json({ erro: "Esa sala xa está completa." });
       const token = crypto.randomUUID();
       p.xog.push(novoXogador(token, b.nome));
-      if (p.xog.length === p.max) { p.fase = "colocando"; p.vacas = VACAS_POR_XOGADORES[p.xog.length]; }
+      if (p.xog.length === p.max) { p.fase = "colocando"; p.vacas = vacasPara(p.zona || "todo", p.xog.length); }
       await gardar(p);
       return res.status(200).json({ sala, token, eu: p.xog.length - 1 });
     }
@@ -170,6 +176,15 @@ module.exports = async (req, res) => {
     if (eu < 0) return res.status(403).json({ erro: "Non estás nesta partida." });
     const min = p.xog[eu];
     if (comprobarRolda(p)) await gardar(p);
+
+    if (accion === "raza") {
+      const raza = RAZAS.includes(b.raza) ? b.raza : null;
+      if (!raza) return res.status(400).json({ erro: "Vaca non válida." });
+      const dona = p.xog.find(x => x !== min && x.raza === raza);
+      if (dona) return res.status(409).json({ erro: `Esa vaca xa a ten ${dona.nome}.` });
+      min.raza = raza; await gardar(p);
+      return res.status(200).json(vista(p, eu));
+    }
 
     if (accion === "nome") {
       if (b.nome) { min.nome = limpaNome(b.nome); await gardar(p); }
@@ -180,7 +195,7 @@ module.exports = async (req, res) => {
       if (eu !== 0) return res.status(403).json({ erro: "Só quen creou a sala pode comezar." });
       if (p.fase !== "esperando") return res.status(400).json({ erro: "A partida xa comezou." });
       if (p.xog.length < 3) return res.status(400).json({ erro: "Fan falta polo menos 3 xogadores." });
-      p.fase = "colocando"; p.vacas = VACAS_POR_XOGADORES[p.xog.length]; await gardar(p);
+      p.fase = "colocando"; p.vacas = vacasPara(p.zona || "todo", p.xog.length); await gardar(p);
       return res.status(200).json(vista(p, eu));
     }
 
@@ -190,7 +205,10 @@ module.exports = async (req, res) => {
       if (vacas.length !== p.vacas) return res.status(400).json({ erro: `Tes que colocar ${p.vacas} vacas.` });
       for (const a of vacas) for (const c of vacas) if (a !== c && (p.veci[a] || []).includes(c))
         return res.status(400).json({ erro: "As vacas non poden estar en concellos veciños." });
-      min.vacas = vacas; min.listo = true; min.raza = RAZAS.includes(b.raza) ? b.raza : "rubia";
+      const raza = RAZAS.includes(b.raza) ? b.raza : (min.raza || RAZAS.find(r => !p.xog.some(x => x.raza === r)));
+      const dona = p.xog.find(x => x !== min && x.raza === raza);
+      if (dona) return res.status(409).json({ erro: `Esa vaca xa a ten ${dona.nome}. Escolle outra.` });
+      min.vacas = vacas; min.listo = true; min.raza = raza;
       if (b.nome) min.nome = limpaNome(b.nome);
       if (p.xog.every(x => x.listo)) { p.fase = "xogando"; p.quen = 0; p.roldaInicio = Date.now(); p.quendaInicio = Date.now(); p.actual = {}; }
       await gardar(p);
@@ -209,7 +227,10 @@ module.exports = async (req, res) => {
         const d = distancia(p.veci, id, riv.vacas, p.dist);
         const r = d === 0 ? "vaca" : d <= p.dist ? "pasto" : "terra";
         min.tiros.push({ id, r });
-        if (min.tiros.filter(t => t.r === "vaca").length >= p.vacas) { p.fase = "fin"; p.gañador = eu; }
+        const completou = min.tiros.filter(t => t.r === "vaca").length >= p.vacas;
+        if (completou && eu === 0) { p.desempate = true; p.quen = 1; p.quendaInicio = Date.now(); } // o segundo ten unha última quenda para empatar
+        else if (completou && eu === 1) { p.fase = "fin"; if (p.desempate) { p.empate = true; p.gañador = null; } else p.gañador = 1; }
+        else if (p.desempate) { p.fase = "fin"; p.gañador = 0; }
         else { p.quen = 1 - eu; p.quendaInicio = Date.now(); }
         await gardar(p);
         return res.status(200).json({ r, ...vista(p, eu) });

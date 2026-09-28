@@ -29,7 +29,8 @@ Juego web para localizar los 313 concellos de Galicia.
 - Al terminar se puede compartir el resultado con cuadrados de colores (🟩 a la primera, 🟨 con fallos, 🟥 no encontrado).
 
 ## Onde teño as vacas?
-- **2 jugadores:** turnos alternos de 30 segundos (constante `TEMPO_QUENDA`); si se agota, pasa el turno. Ambos conectados. Cada uno esconde 6 vacas (no vecinas entre sí) y ataca las del otro. Vaca / pasto (vaca vecina) / tierra. Gana quien encuentra antes las 6.
-- **3 o 4 jugadores:** mapa común y rondas simultáneas de 40 segundos (constante `TEMPO_ROLDA` en `api/vacas.js`). Cada uno esconde 5 vacas (3 jugadores) o 4 (4 jugadores) y tira una vez por ronda; los resultados se revelan al cerrar la ronda. Un punto por cada vaca ajena encontrada; gana quien más puntos tiene cuando solo queda un equipo con vacas (o a las 40 rondas), y en empate quien menos vacas perdió. Quien no tira a tiempo pierde esa tirada.
-- Se crea una sala (código de 4 letras); los demás entran con el código o con el enlace `?sala=CODIGO`. Con 4 plazas, el creador puede empezar con 3.
-- Razas para elegir equipo: Rubia galega, Cachena, Frisona y Milka. Las partidas caducan a las 12 h.
+- Se juega con toda Galicia (6 vacas cada uno, "pasto" si hay una vaca a 2 concellos o menos) o con una sola provincia, eligiéndola en el filtro antes de crear la sala (4 vacas a dos jugadores, 3 a tres o cuatro; pasto a 1 concello).
+- **2 jugadores:** turnos alternos de 30 segundos (constante `TEMPO_QUENDA`); si se agota, pasa el turno. Como empieza el creador, si completa primero el otro tiene una última tirada: si también completa, es empate.
+- **3 o 4 jugadores:** mapa común y rondas simultáneas de 40 segundos (`TEMPO_ROLDA`). Una tirada por ronda; resultados al cerrar la ronda. Un punto por cada vaca ajena; gana quien más puntos tiene cuando solo queda un equipo con vacas (o a las 40 rondas); en empate, quien menos vacas perdió.
+- Al atacar, el primer toque muestra el nombre del concello y el segundo (o el botón) confirma la tirada, para trabajar la memorización.
+- Seis vacas para elegir equipo (Rubia galega, Cachena, Frisona, Milka, Vianesa, Frieiresa); dos jugadores no pueden llevar la misma. Sala con código de 4 letras o enlace `?sala=CODIGO`; las partidas caducan a las 12 h.
