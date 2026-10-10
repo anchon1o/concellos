@@ -114,6 +114,24 @@ main.neutro .prov{display:none}
 #vacas[data-vista="defensa"]{box-shadow:inset 0 0 0 3px #f2d16b, 0 4px 18px rgba(0,0,0,.2)}
 main.defensa{background:#e9e0c4}
 @media (prefers-color-scheme:dark){ :root:not([data-theme="light"]) main.defensa{background:#2b271a} }
+.marc{display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap}
+.marc .eq{flex:1;min-width:120px;display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:10px;border:2px solid var(--linea);background:var(--papel)}
+.marc .eq.activo{border-color:var(--ko);box-shadow:0 0 0 2px #e0473a33}
+.marc .eq.fora{opacity:.45}
+.marc .eq img{height:28px;width:38px;object-fit:contain;flex:none}
+.marc .eq .n{font-weight:700;font-size:.85rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
+.marc .eq .p{display:flex;gap:2px;flex:none}
+.marc .eq .p i{width:9px;height:9px;border-radius:50%;background:#f2d16b;display:inline-block;border:1px solid #b89a3a}
+.marc .eq .p i.x{background:var(--ko);border-color:var(--ko)}
+.marc .eq .t{font-size:.72rem;color:var(--suave);flex:none}
+.ligazon{display:block;width:100%;margin-top:8px;font:inherit;font-size:.85rem;background:none;border:none;color:var(--suave);text-decoration:underline;cursor:pointer}
+#partidas h3{font-family:"Bricolage Grotesque",system-ui,sans-serif;font-weight:800;font-size:1.1rem;margin:0 0 6px}
+.plista{display:flex;flex-direction:column;gap:6px;max-height:30vh;overflow:auto}
+.plista button{font:inherit;text-align:left;display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:10px;border:2px solid var(--linea);background:var(--papel);color:var(--tinta);cursor:pointer}
+.plista button.tocache{border-color:var(--ko)}
+.plista button b{font-family:"Bricolage Grotesque",system-ui,sans-serif;letter-spacing:.08em}
+.plista button span{flex:1;color:var(--suave);font-size:.88rem}
+.plista .baleiro{color:var(--suave);font-size:.9rem}
 #vacas h3{font-family:"Bricolage Grotesque",system-ui,sans-serif;font-weight:800;font-size:1.2rem;margin:0}
 #vacas p{margin:3px 0 0;color:var(--suave);font-size:.92rem}
 .codigo{flex:1;min-width:0;width:60px;font:inherit;font-size:.95rem;height:32px;padding:0 8px;border-radius:10px;border:2px solid var(--linea);background:var(--papel);color:var(--tinta);text-transform:uppercase;letter-spacing:.1em}
@@ -227,6 +245,8 @@ main.neutro .concello.perdida{fill:var(--ko)!important}
           <button id="comezar">Comezar</button>
           <button id="vXog" class="icona xog" aria-label="Número de xogadores: 2. Toca para cambialo" title="Xogadores" hidden>
             <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.5 3-5.5 6.5-5.5s6.5 2 6.5 5.5"/><path d="M16 5.5a3.5 3.5 0 0 1 0 5"/><path d="M17.5 14.7c2.5.6 4 2.6 4 5.3"/></svg><b id="vXogN">2</b></button>
+          <button id="vTempo" class="icona xog" aria-label="Tempo por quenda: 30 segundos. Toca para cambialo" title="Tempo por quenda" hidden>
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9 2h6M12 2v3"/></svg><b id="vTempoN">30s</b></button>
           <button id="vCrear" hidden>Crear sala</button>
           <button id="vTeño" hidden>Teño código</button>
           <input id="vSala" class="codigo" maxlength="4" placeholder="Código" autocapitalize="characters" autocomplete="off" aria-label="Código da sala" hidden>
@@ -259,12 +279,18 @@ main.neutro .concello.perdida{fill:var(--ko)!important}
   </div>
   <div class="barra" id="vacas">
     <div id="vTabs" class="tabs" hidden><button id="tabA" aria-pressed="true">Atacar</button><button id="tabD" aria-pressed="false">As miñas vacas</button></div>
+    <div id="vMarc" class="marc" hidden></div>
     <h3 id="vTitulo"></h3>
     <p id="vTexto"></p>
     <input id="vNome" maxlength="20" placeholder="O teu nome" autocomplete="nickname" aria-label="O teu nome" hidden>
     <div id="vRazas" class="razas" role="group" aria-label="Escolle a túa vaca" hidden></div>
     <div id="vAviso" style="min-height:1.3em;font-weight:700;margin-top:4px"></div>
     <div class="botons"><button id="vSec">Deixar</button><button id="vPrin" class="prin"></button></div>
+    <button id="vVolver" class="ligazon" hidden>Pechar e volver máis tarde</button>
+  </div>
+  <div class="barra" id="partidas">
+    <h3>As túas partidas</h3>
+    <div id="pLista" class="plista"></div>
   </div>
   <div class="barra" id="arredores">
     <h3 id="aTitulo"></h3>
@@ -525,7 +551,9 @@ cargar().then(topo => {
     $("accion").hidden = !xogable;
     $("nivel").hidden = modo==="diario" || modo==="vacas";
     $("comezar").hidden = modo==="vacas";
-    ["vXog","vCrear","vTeño"].forEach(i => $(i).hidden = modo!=="vacas");
+    ["vXog","vTempo","vCrear","vTeño"].forEach(i => $(i).hidden = modo!=="vacas");
+    $("partidas").classList.toggle("visible", modo==="vacas" && !vs);
+    if (modo==="vacas" && !vs) pintarPartidas();
     ["vSala","vEntrar"].forEach(i => $(i).hidden = true);
     if (modo!=="vacas") saírVacas(false);
     $("verRanking").hidden = !(modo==="pleno" || modo==="diario");
@@ -1034,7 +1062,44 @@ cargar().then(topo => {
   }
   $("vNome").addEventListener("change", enviarNome);
   $("vNome").addEventListener("blur", enviarNome);
-  function gardarSesion(){ try { localStorage.setItem("concellos:vacas", JSON.stringify({sala:vs.sala, token:vs.token, eu:vs.eu})); } catch(e){} }
+  function lerPartidas(){ try { return JSON.parse(localStorage.getItem("concellos:vacas:lista") || "[]"); } catch(e){ return []; } }
+  function escribirPartidas(l){ try { localStorage.setItem("concellos:vacas:lista", JSON.stringify(l)); } catch(e){} }
+  function gardarSesion(){
+    const l = lerPartidas().filter(x => x.sala !== vs.sala);
+    l.unshift({sala:vs.sala, token:vs.token, eu:vs.eu, data:Date.now()});
+    escribirPartidas(l.slice(0, 10));
+  }
+  function esquecerPartida(sala){ escribirPartidas(lerPartidas().filter(x => x.sala !== sala)); }
+  async function pintarPartidas(){
+    const cont = $("pLista"); const l = lerPartidas();
+    if (!l.length){ cont.replaceChildren(Object.assign(document.createElement("div"), {className:"baleiro", textContent:"Ningunha partida aberta. Crea unha sala ou entra cun código."})); return; }
+    cont.replaceChildren(...l.map(x => {
+      const b = document.createElement("button"); b.dataset.sala = x.sala;
+      const n = document.createElement("b"); n.textContent = x.sala;
+      const t = document.createElement("span"); t.textContent = "Consultando…";
+      b.append(n, t);
+      b.addEventListener("click", () => { vs = {...x, est:null, vista:"ataque", colocando:new Set(), ultimoV:-1}; entrarEnPartida(); });
+      return b;
+    }));
+    for (const x of l){
+      const b = cont.querySelector(`button[data-sala="${x.sala}"]`); if (!b) continue;
+      try {
+        const r = await fetch(`${API_VACAS}?sala=${x.sala}&token=${x.token}`); const d = await r.json();
+        if (r.status === 404){ esquecerPartida(x.sala); b.remove(); continue; }
+        if (!r.ok) throw new Error(d.erro);
+        const outros = d.modo === "duelo" ? (d.rival ? d.rival.nome : "ninguén aínda") : d.xogadores.filter((q, i) => i !== d.eu).map(q => q.nome).join(", ") || "ninguén aínda";
+        let txt, tocache = false;
+        if (d.fase === "esperando") txt = `Agardando xogadores (${d.modo === "duelo" ? 1 : d.xogadores.length} de ${d.max || 2})`;
+        else if (d.fase === "colocando") { tocache = !d.meu.listo; txt = tocache ? "Tócache esconder as vacas" : "Agardando polas vacas dos demais"; }
+        else if (d.fase === "fin") txt = d.gañador === d.eu ? "Rematada: gañaches" : d.empate ? "Rematada: empate" : "Rematada";
+        else if (d.modo === "duelo") { tocache = d.quen === d.eu; txt = tocache ? `Tócache tirar contra ${outros}` : `Quenda de ${outros}`; }
+        else { tocache = !d.meu.tirada; txt = tocache ? `Rolda ${d.rolda}: tócache tirar` : `Rolda ${d.rolda}: agardando polos demais`; }
+        b.querySelector("span").textContent = `${txt}${d.tempo ? "" : " (sen reloxo)"}`;
+        b.classList.toggle("tocache", tocache);
+      } catch(e){ b.querySelector("span").textContent = "Sen conexión"; }
+    }
+  }
+  setInterval(() => { if (modo === "vacas" && !vs) pintarPartidas(); }, 15000);
   function avisoVacas(txt, ben){ const a = $("vAviso"); a.textContent = txt || ""; a.style.color = ben===false ? "var(--ko)" : ben ? "var(--ok)" : "var(--tinta)"; }
   
   function alias(){ try { return localStorage.getItem("concellos:alias") || ""; } catch(e){ return ""; } }
@@ -1052,7 +1117,7 @@ cargar().then(topo => {
     if (!zona){ $("estado").textContent = "Para xogar ás vacas escolle toda Galicia ou unha soa provincia no filtro."; return; }
     $("estado").textContent = "Creando a sala…";
     try {
-      const d = await pedirVacas({accion:"crear", nome:alias(), veci:vaciñosZona(), xogadores:nXog, zona});
+      const d = await pedirVacas({accion:"crear", nome:alias(), veci:vaciñosZona(), xogadores:nXog, zona, tempo:TEMPOS[iTempo]});
       vs = {sala:d.sala, token:d.token, eu:d.eu, est:null, vista:"ataque", colocando:new Set(), ultimoV:-1};
       gardarSesion(); entrarEnPartida();
     } catch(e){ $("estado").textContent = e.message; }
@@ -1070,13 +1135,13 @@ cargar().then(topo => {
   function entrarEnPartida(){
     $("controis").hidden = true; $("ficha").classList.remove("visible");
     document.querySelector("main").classList.add("neutro");
-    limpar(); $("vacas").classList.add("visible");
+    limpar(); $("vacas").classList.add("visible"); $("partidas").classList.remove("visible");
     $("vNome").value = alias(); nomeEnviado = alias();
     avisoVacas("");
     actualizarVacas(true);
     vs.timer = setInterval(() => actualizarVacas(false), 2500);
     vs.reloxo = setInterval(() => {
-      if (!vs || !vs.est || vs.est.fase !== "xogando") return;
+      if (!vs || !vs.est || vs.est.fase !== "xogando" || !vs.est.tempo) return;
       const seg = Math.max(0, Math.ceil((vs.fin - Date.now())/1000));
       if (vs.est.modo === "roldas") $("vTitulo").textContent = `Rolda ${vs.est.rolda}: ${seg} s`;
       else if (vs.vista === "ataque") $("vTitulo").textContent = `${vs.est.quen === vs.est.eu ? "Tócache tirar" : `Quenda de ${rival(vs.est)}`}: ${seg} s`;
@@ -1101,6 +1166,7 @@ cargar().then(topo => {
     limpar();
     if (volverPanel){ $("controis").hidden = false; porModo(); }
   }
+  function amosarVolver(e){ $("vVolver").hidden = e.fase === "fin"; }
 
   async function actualizarVacas(forzar){
     if (!vs) return;
@@ -1112,6 +1178,12 @@ cargar().then(topo => {
       const antes = vs.est;
       vs.est = d; vs.ultimoV = d.v;
       aplicarZona(d.zona);
+      if (antes && antes.fase === "xogando" && d.fase === "xogando"){
+        if (d.modo === "duelo" && antes.quen !== d.quen && d.quen === d.eu) vibrar([80, 60, 80]);
+        if (d.modo === "roldas" && d.roldas.length > antes.roldas.length) vibrar([80, 60, 80]);
+      }
+      if (antes && antes.fase !== "xogando" && d.fase === "xogando") vibrar(120);
+      if (antes && antes.fase === "esperando" && d.fase !== "esperando") vibrar(120);
       vs.fin = Date.now() + (d.restante || 0);
       if (d.modo === "roldas"){
         if (antes && d.roldas.length > antes.roldas.length) avisarRolda(d.roldas[d.roldas.length - 1]);
@@ -1172,6 +1244,26 @@ cargar().then(topo => {
   }
 
   const rival = e => e.rival ? e.rival.nome : "O rival";
+  const vibrar = ms => { try { if (navigator.vibrate) navigator.vibrate(ms); } catch(e){} };
+  function pintarMarcador(e){
+    const m = $("vMarc"); m.replaceChildren();
+    const enXogo = e.fase === "xogando" || e.fase === "fin";
+    m.hidden = !enXogo; if (!enXogo) return;
+    const equipos = e.modo === "duelo"
+      ? [{nome:e.eu===0 ? "Ti" : e.nomes[0], raza:e.eu===0 ? e.meu.raza : e.rival.raza, perdidas:e.eu===0 ? e.rival.atopadas : e.meu.atopadas, activo:e.quen===0},
+         {nome:e.eu===1 ? "Ti" : e.nomes[1], raza:e.eu===1 ? e.meu.raza : e.rival.raza, perdidas:e.eu===1 ? e.rival.atopadas : e.meu.atopadas, activo:e.quen===1}]
+      : e.xogadores.map((x, i) => ({nome:i===e.eu ? "Ti" : x.nome, raza:x.raza, perdidas:e.vacas - x.quedan, fora:x.fora, activo:!x.tirou && !x.fora, puntos:x.puntos}));
+    equipos.forEach(q => {
+      const d = document.createElement("div"); d.className = "eq" + (q.activo && e.fase === "xogando" ? " activo" : "") + (q.fora ? " fora" : "");
+      const img = document.createElement("img"); img.src = razaDe(q.raza).img; img.alt = "";
+      const n = document.createElement("span"); n.className = "n"; n.textContent = q.nome;
+      const p = document.createElement("span"); p.className = "p";
+      for (let k = 0; k < e.vacas; k++){ const i = document.createElement("i"); if (k < q.perdidas) i.className = "x"; p.appendChild(i); }
+      d.append(img, n, p);
+      if (q.puntos != null){ const t = document.createElement("span"); t.className = "t"; t.textContent = `${q.puntos} pt`; d.appendChild(t); }
+      m.appendChild(d);
+    });
+  }
   function nomeDe(id){ const f = porId.get(String(id)); return f ? f.properties.name : id; }
   function avisarRolda(rolda){
     const e = vs.est, t = rolda.find(x => x.quen === e.eu);
@@ -1213,6 +1305,7 @@ cargar().then(topo => {
 
   function renderRoldas(){
     const e = vs.est, sec = $("vSec"), prin = $("vPrin");
+    pintarMarcador(e); amosarVolver(e);
     prin.hidden = false; prin.disabled = false; sec.textContent = "Deixar";
     $("vNome").hidden = !(e.fase === "esperando" || (e.fase === "colocando" && !e.meu.listo));
     $("vRazas").hidden = !(e.fase === "colocando" && !e.meu.listo);
@@ -1238,9 +1331,9 @@ cargar().then(topo => {
     const marcador = e.xogadores.map((x, i) => `${i === e.eu ? "Ti" : x.nome} ${x.puntos}${x.fora ? " (fóra)" : ""}`).join(", ");
     if (e.fase === "xogando"){
       const seg = Math.max(0, Math.ceil((vs.fin - Date.now())/1000));
-      $("vTitulo").textContent = `Rolda ${e.rolda}: ${seg} s`;
+      $("vTitulo").textContent = e.tempo ? `Rolda ${e.rolda}: ${seg} s` : `Rolda ${e.rolda}`;
       const faltan = e.xogadores.filter(x => !x.fora && !x.tirou).map(x => x.nome);
-      $("vTexto").textContent = `${marcador}. ` + (e.meu.tirada ? `Tiraches en ${nomeDe(e.meu.tirada)}. Faltan: ${faltan.join(", ") || "ninguén"}.` : "Toca un concello para ver o seu nome e confirma antes de que remate o tempo.");
+      $("vTexto").textContent = `${marcador}. ` + (e.meu.tirada ? `Tiraches en ${nomeDe(e.meu.tirada)}. Faltan: ${faltan.join(", ") || "ninguén"}.` : (e.tempo ? "Toca un concello para ver o seu nome e confirma antes de que remate o tempo." : "Toca un concello para ver o seu nome e confirma. Sen présa: non hai reloxo."));
       if (vs.sel && !e.meu.tirada){ const d = porId.get(vs.sel); prin.textContent = `Tirar en ${d ? d.properties.name : ""}`; pezas.classed("escollido", f => String(f.id) === vs.sel); }
       else { prin.hidden = true; desescoller(); }
       return;
@@ -1258,6 +1351,7 @@ cargar().then(topo => {
     if (e.modo === "roldas") return renderRoldas();
     const rival = e.rival ? e.rival.nome : "o rival";
     const sec = $("vSec"), prin = $("vPrin");
+    pintarMarcador(e); amosarVolver(e);
     prin.hidden = false; prin.disabled = false; sec.textContent = "Deixar"; sec.hidden = false;
     $("vNome").hidden = !(e.fase === "esperando" || (e.fase === "colocando" && !e.meu.listo));
     const enXogo = e.fase === "xogando" || e.fase === "fin";
@@ -1291,7 +1385,8 @@ cargar().then(topo => {
       const miña = e.quen === e.eu;
       pintarVacas();
       const seg = Math.max(0, Math.ceil((vs.fin - Date.now())/1000));
-      $("vTitulo").textContent = vs.vista === "ataque" ? `${miña ? (e.desempate ? "Última quenda: empata!" : "Tócache tirar") : `Quenda de ${rival}`}: ${seg} s` : "As túas vacas";
+      const tit = miña ? (e.desempate ? "Última quenda: empata!" : "Tócache tirar") : `Quenda de ${rival}`;
+      $("vTitulo").textContent = vs.vista === "ataque" ? (e.tempo ? `${tit}: ${seg} s` : tit) : "As túas vacas";
       $("vTexto").textContent = (vs.vista === "ataque"
         ? `Atopaches ${e.meu.atopadas} de ${e.vacas} vacas de ${rival}. `
         : `${rival} atopou ${e.rival.atopadas} de ${e.vacas} das túas. `) +
@@ -1363,9 +1458,16 @@ cargar().then(topo => {
 
   let nXog = 2;
   $("vXog").addEventListener("click", () => { nXog = nXog >= 4 ? 2 : nXog + 1; $("vXogN").textContent = nXog; $("vXog").setAttribute("aria-label", `Número de xogadores: ${nXog}. Toca para cambialo`); });
-  $("vTeño").addEventListener("click", () => { ["vXog","vCrear","vTeño"].forEach(i => $(i).hidden = true); ["vSala","vEntrar"].forEach(i => $(i).hidden = false); $("vSala").focus(); });
+  const TEMPOS = [30, 40, 20, 0]; let iTempo = 0;
+  $("vTempo").addEventListener("click", () => {
+    iTempo = (iTempo + 1) % TEMPOS.length; const t = TEMPOS[iTempo];
+    $("vTempoN").textContent = t ? `${t}s` : "∞";
+    $("vTempo").setAttribute("aria-label", t ? `Tempo por quenda: ${t} segundos. Toca para cambialo` : "Sen límite de tempo: partida lenta, de días. Toca para cambialo");
+  });
+  $("vTeño").addEventListener("click", () => { ["vXog","vTempo","vCrear","vTeño"].forEach(i => $(i).hidden = true); ["vSala","vEntrar"].forEach(i => $(i).hidden = false); $("vSala").focus(); });
   $("tabA").addEventListener("click", () => { if (vs){ vs.vista = "ataque"; vs.vistaManual = true; renderVacas(); } });
   $("tabD").addEventListener("click", () => { if (vs){ vs.vista = "defensa"; vs.novoEnDefensa = false; renderVacas(); } });
+  $("vVolver").addEventListener("click", () => saírVacas(true));
   $("vCrear").addEventListener("click", crearSala);
   $("vEntrar").addEventListener("click", () => entrarSala($("vSala").value));
   $("vSala").addEventListener("keydown", ev => { if (ev.key === "Enter") entrarSala($("vSala").value); });
@@ -1384,24 +1486,24 @@ cargar().then(topo => {
     } else if (e.fase === "colocando"){
       try { const r = await pedirVacas({accion:"colocar", sala:vs.sala, token:vs.token, vacas:[...vs.colocando], raza:vs.raza, nome:nomeXogador()}); vs.est = r; vs.ultimoV = r.v; renderVacas(); }
       catch(er){ avisoVacas(er.message, false); }
-    } else if (e.fase === "fin"){ saírVacas(true); }
+    } else if (e.fase === "fin"){ esquecerPartida(vs.sala); saírVacas(true); }
   });
   $("vSec").addEventListener("click", async () => {
     if (!vs || !vs.est) return;
     const e = vs.est;
-    if (e.fase === "fin"){ saírVacas(true); return; }
+    if (e.fase === "fin"){ esquecerPartida(vs.sala); saírVacas(true); return; }
     if (!confirm("Seguro que queres deixar a partida?")) return;
     try { await pedirVacas({accion:"abandonar", sala:vs.sala, token:vs.token}); } catch(er){}
-    saírVacas(true);
+    esquecerPartida(vs.sala); saírVacas(true);
   });
 
   // Convite por ligazón (?sala=ABCD) ou partida a medias gardada
   (function(){
     const sala = new URLSearchParams(location.search).get("sala");
     if (!sala) return;
-    let ses = null; try { ses = JSON.parse(localStorage.getItem("concellos:vacas") || "null"); } catch(e){}
+    const ses = lerPartidas().find(x => x.sala === sala.toUpperCase());
     modo = "vacas"; porModo();
-    if (ses && ses.sala === sala.toUpperCase()){ vs = {...ses, est:null, vista:"ataque", colocando:new Set(), ultimoV:-1}; entrarEnPartida(); }
+    if (ses){ vs = {...ses, est:null, vista:"ataque", colocando:new Set(), ultimoV:-1}; entrarEnPartida(); }
     else { $("vSala").value = sala.toUpperCase(); entrarSala(sala); }
     history.replaceState(null, "", location.pathname);
   })();

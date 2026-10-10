@@ -1,138 +1,128 @@
-// Ranking do Reto (unha táboa por nivel e zona) e do Reto diario (unha táboa por día).
-// Garda as marcas en Redis (conectado desde Vercel > Storage).
-const crypto = require("crypto");
-
+// Rankings de Concellos de Galicia, gardados en Supabase "xogos":
+//   con_ranking_reto   -> Reto (unha táboa lóxica por nivel e zona)
+//   con_ranking_diario -> Reto diario (unha por día, en hora de España)
+// A páxina segue chamando a /api/ranking igual que antes; só cambia onde se garda.
 const NIVEIS = ["facil", "medio", "dificil", "perfecto"];
 const TOTAL = { todo: 313, "15": 93, "27": 67, "32": 92, "36": 61 };
-// Vale con Redis Cloud (REDIS_URL) ou con Upstash (variables REST)
-const REDIS_URL = process.env.REDIS_URL;
-const URL_REST = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
-const TOKEN_REST = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
-const GARDAR = 100; // marcas que se conservan por táboa
-const AMOSAR = 20;  // marcas que se devolven
+const AMOSAR = 20;      // marcas que se devolven
+const DIAS_DIARIO = 45; // días que se conservan do reto diario
 
-// Conexión reutilizada entre chamadas mentres a función siga quente
-let cliente = null;
-function conectar() {
-  if (!cliente) {
-    const { createClient } = require("redis");
-    const c = createClient({ url: REDIS_URL });
-    c.on("error", () => {});
-    cliente = c.connect().then(() => c).catch(e => { cliente = null; throw e; });
-  }
-  return cliente;
+const SB_URL = (process.env.SUPABASE_URL || "").replace(/\/$/, "");
+const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY || "";
+
+// Cabeceiras para a API REST de Supabase (vale coa clave service_role antiga ou coa nova sb_secret_)
+function cabeceiras(extra) {
+  const h = { apikey: SB_KEY, "Content-Type": "application/json", ...extra };
+  if (!SB_KEY.startsWith("sb_")) h.Authorization = `Bearer ${SB_KEY}`;
+  return h;
+}
+async function sb(path, opcions = {}) {
+  const r = await fetch(`${SB_URL}/rest/v1/${path}`, { ...opcions, headers: cabeceiras(opcions.headers) });
+  if (!r.ok) throw new Error(`Supabase ${r.status}: ${await r.text()}`);
+  return r;
+}
+// Cantas filas cumpren un filtro (para calcular o posto)
+async function contar(path) {
+  const r = await sb(path, { method: "HEAD", headers: { Prefer: "count=exact" } });
+  const rango = r.headers.get("content-range") || "*/0";
+  return Number(rango.split("/")[1]) || 0;
 }
 
-async function redis(comandos) {
-  if (REDIS_URL) {
-    const c = await conectar();
-    const saida = [];
-    for (const cmd of comandos) saida.push(await c.sendCommand(cmd.map(String)));
-    return saida;
-  }
-  const r = await fetch(`${URL_REST}/pipeline`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${TOKEN_REST}`, "Content-Type": "application/json" },
-    body: JSON.stringify(comandos),
-  });
-  if (!r.ok) throw new Error("Redis " + r.status);
-  return (await r.json()).map(x => { if (x.error) throw new Error(x.error); return x.result; });
-}
-
-const chave = (nivel, zona) => `concellos:ranking:${nivel}:${zona}`;
-const chaveDiario = data => `concellos:diario:${data}`;
 // Data en Galicia (hora de Madrid); acéptase tamén a de onte polas partidas que rematan pasada a medianoite
 const dataMadrid = t => new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Madrid" }).format(t);
 const datasValidas = () => [dataMadrid(new Date()), dataMadrid(new Date(Date.now() - 864e5))];
-const lerTop = lista => (lista || []).map(m => { try { return JSON.parse(m); } catch { return null; } }).filter(Boolean);
+const limpaAlias = a => String(a || "").replace(/[\u0000-\u001f<>]/g, "").trim().slice(0, 20);
 
-// Máis atopados, logo menos erros, logo menos tempo (en centésimas)
-function puntuacion(acertos, erros, tempoMs) {
-  const cs = Math.min(Math.round(tempoMs / 10), 99999999);
-  return acertos * 1e12 + (9999 - Math.min(erros, 9999)) * 1e8 + (99999999 - cs);
+// O xogo espera estes nomes de campos (tempo en ms, data AAAA-MM-DD)
+const deReto = f => ({ id: f.id, alias: f.alias, acertos: f.acertos, total: f.total, erros: f.erros, tempo: f.tempo_ms, data: String(f.creado).slice(0, 10) });
+const deDiario = f => ({ id: f.id, alias: f.alias, puntos: f.puntos, acertos: f.acertos, erros: f.erros, tempo: f.tempo_ms, data: f.data });
+
+const ORDE_RETO = "acertos.desc,erros.asc,tempo_ms.asc";
+const ORDE_DIARIO = "puntos.desc,erros.asc,tempo_ms.asc";
+const enc = encodeURIComponent;
+
+async function topReto(nivel, zona, n = AMOSAR) {
+  const r = await sb(`con_ranking_reto?select=id,alias,acertos,total,erros,tempo_ms,creado&nivel=eq.${nivel}&zona=eq.${zona}&order=${ORDE_RETO}&limit=${n}`);
+  return (await r.json()).map(deReto);
+}
+async function topDiario(data, n = AMOSAR, desde = null) {
+  const filtro = desde ? `data=gte.${desde}&data=lte.${data}` : `data=eq.${data}`;
+  const r = await sb(`con_ranking_diario?select=id,alias,puntos,acertos,erros,tempo_ms,data&${filtro}&order=${ORDE_DIARIO}&limit=${n}`);
+  return (await r.json()).map(deDiario);
 }
 
 module.exports = async (req, res) => {
   res.setHeader("Cache-Control", "no-store");
-  if (!REDIS_URL && !(URL_REST && TOKEN_REST)) return res.status(500).json({ erro: "Falta conectar a base de datos Redis." });
+  if (!SB_URL || !SB_KEY) return res.status(500).json({ erro: "Falta conectar Supabase (SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY)." });
 
   try {
-    if (req.method === "GET" && req.query.tipo === "diario") {
-      const data = String(req.query.data || "");
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(data)) return res.status(400).json({ erro: "Data non válida." });
-      const [top] = await redis([["ZRANGE", chaveDiario(data), "0", String(AMOSAR - 1), "REV"]]);
-      return res.status(200).json({ top: lerTop(top) });
-    }
-
+    // ---------- Ler ----------
     if (req.method === "GET") {
+      // n: posicións (1-50); cache=1: a páxina ranking.html acepta datos de ata 20 s para ir máis rápida
+      const n = Math.min(50, Math.max(1, Math.floor(Number(req.query.n)) || AMOSAR));
+      if (req.query.cache === "1") res.setHeader("Cache-Control", "public, s-maxage=20, stale-while-revalidate=60");
+      const DATA = /^\d{4}-\d{2}-\d{2}$/;
+      if (req.query.tipo === "diario") {
+        const data = String(req.query.data || dataMadrid(new Date()));
+        const desde = req.query.desde ? String(req.query.desde) : null;
+        if (!DATA.test(data) || (desde && !DATA.test(desde))) return res.status(400).json({ erro: "Data non válida." });
+        return res.status(200).json({ top: await topDiario(data, n, desde) });
+      }
       const { nivel, zona } = req.query;
       if (!NIVEIS.includes(nivel) || !(zona in TOTAL)) return res.status(400).json({ erro: "Parámetros non válidos." });
-      const [top] = await redis([["ZRANGE", chave(nivel, zona), "0", String(AMOSAR - 1), "REV"]]);
-      return res.status(200).json({ top: lerTop(top) });
+      return res.status(200).json({ top: await topReto(nivel, zona, n) });
     }
 
-    if (req.method === "POST") {
-      let b = req.body;
-      if (typeof b === "string") b = JSON.parse(b || "{}");
-      b = b || {};
-      const alias = String(b.alias || "").replace(/[\u0000-\u001f<>]/g, "").trim().slice(0, 20);
-      if (!alias) return res.status(400).json({ erro: "Falta o alias." });
-      const ip = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim() || "descoñecida";
+    if (req.method !== "POST") {
+      res.setHeader("Allow", "GET, POST");
+      return res.status(405).json({ erro: "Método non permitido." });
+    }
 
-      // ---- Reto diario: 10 concellos, puntos (3/2/1), erros e tempo ----
-      if (b.tipo === "diario") {
-        const data = String(b.data || "");
-        const puntos = Math.floor(Number(b.puntos)), acertos = Math.floor(Number(b.acertos));
-        const erros = Math.floor(Number(b.erros)), tempo = Math.floor(Number(b.tempo));
-        if (!datasValidas().includes(data)) return res.status(400).json({ erro: "Ese reto xa pechou." });
-        if (!(acertos >= 1 && acertos <= 10) || !(puntos >= acertos && puntos <= acertos * 3) ||
-            !(erros >= 0 && erros <= 1000) || !(tempo >= acertos * 400 && tempo <= 72e5))
-          return res.status(400).json({ erro: "Marca non válida." });
-        const [envios] = await redis([["INCR", `concellos:limite:${ip}`], ["EXPIRE", `concellos:limite:${ip}`, "600"]]);
-        if (envios > 20) return res.status(429).json({ erro: "Demasiados envíos. Proba máis tarde." });
-        const entrada = { id: crypto.randomUUID(), alias, puntos, acertos, erros, tempo, data };
-        const k = chaveDiario(data), m = JSON.stringify(entrada);
-        const cs = Math.min(Math.round(tempo / 10), 99999999);
-        const score = puntos * 1e12 + (9999 - Math.min(erros, 9999)) * 1e8 + (99999999 - cs);
-        const [, , , posto, top] = await redis([
-          ["ZADD", k, String(score), m],
-          ["ZREMRANGEBYRANK", k, "0", String(-(GARDAR + 1))],
-          ["EXPIRE", k, String(60 * 60 * 24 * 45)],
-          ["ZREVRANK", k, m],
-          ["ZRANGE", k, "0", String(AMOSAR - 1), "REV"],
-        ]);
-        return res.status(200).json({ id: entrada.id, posicion: posto === null ? null : posto + 1, top: lerTop(top) });
-      }
+    // ---------- Gardar ----------
+    let b = req.body;
+    if (typeof b === "string") b = JSON.parse(b || "{}");
+    b = b || {};
+    const alias = limpaAlias(b.alias);
+    if (!alias) return res.status(400).json({ erro: "Falta o alias." });
 
-      const nivel = b.nivel, zona = b.zona;
-      const acertos = Math.floor(Number(b.acertos));
-      const erros = Math.floor(Number(b.erros));
-      const tempo = Math.floor(Number(b.tempo));
-
-      if (!NIVEIS.includes(nivel) || !(zona in TOTAL)) return res.status(400).json({ erro: "Nivel ou zona non válidos." });
-      const total = TOTAL[zona];
-      if (!(acertos >= 1 && acertos <= total) || !(erros >= 0 && erros <= 100000) || !(tempo >= 1000 && tempo <= 36e6))
+    if (b.tipo === "diario") {
+      const data = String(b.data || "");
+      const puntos = Math.floor(Number(b.puntos)), acertos = Math.floor(Number(b.acertos));
+      const erros = Math.floor(Number(b.erros)), tempo = Math.floor(Number(b.tempo));
+      if (!datasValidas().includes(data)) return res.status(400).json({ erro: "Ese reto xa pechou." });
+      if (!(acertos >= 1 && acertos <= 10) || !(puntos >= acertos && puntos <= acertos * 3) ||
+          !(erros >= 0 && erros <= 1000) || !(tempo >= acertos * 400 && tempo <= 72e5))
         return res.status(400).json({ erro: "Marca non válida." });
-      if (tempo < acertos * 400) return res.status(400).json({ erro: "Marca non válida." }); // ninguén acerta tan rápido
 
-      // Límite sinxelo: 20 envíos cada 10 minutos por IP
-      const [envios] = await redis([["INCR", `concellos:limite:${ip}`], ["EXPIRE", `concellos:limite:${ip}`, "600"]]);
-      if (envios > 20) return res.status(429).json({ erro: "Demasiados envíos. Proba máis tarde." });
-
-      const entrada = { id: crypto.randomUUID(), alias, acertos, total, erros, tempo, data: new Date().toISOString().slice(0, 10) };
-      const k = chave(nivel, zona), m = JSON.stringify(entrada);
-      const [, , posto, top] = await redis([
-        ["ZADD", k, String(puntuacion(acertos, erros, tempo)), m],
-        ["ZREMRANGEBYRANK", k, "0", String(-(GARDAR + 1))],
-        ["ZREVRANK", k, m],
-        ["ZRANGE", k, "0", String(AMOSAR - 1), "REV"],
-      ]);
-      return res.status(200).json({ id: entrada.id, posicion: posto === null ? null : posto + 1, top: lerTop(top) });
+      const r = await sb("con_ranking_diario?select=id", {
+        method: "POST", headers: { Prefer: "return=representation" },
+        body: JSON.stringify({ data, alias, puntos, acertos, erros, tempo_ms: tempo }),
+      });
+      const [{ id }] = await r.json();
+      const mellores = await contar(`con_ranking_diario?data=eq.${data}&or=${enc(`(puntos.gt.${puntos},and(puntos.eq.${puntos},erros.lt.${erros}),and(puntos.eq.${puntos},erros.eq.${erros},tempo_ms.lt.${tempo}))`)}`);
+      // limpeza: bórranse os días antigos
+      const vello = dataMadrid(new Date(Date.now() - DIAS_DIARIO * 864e5));
+      sb(`con_ranking_diario?data=lt.${vello}`, { method: "DELETE" }).catch(() => {});
+      return res.status(200).json({ id, posicion: mellores + 1, top: await topDiario(data) });
     }
 
-    res.setHeader("Allow", "GET, POST");
-    return res.status(405).json({ erro: "Método non permitido." });
+    const nivel = b.nivel, zona = b.zona;
+    const acertos = Math.floor(Number(b.acertos)), erros = Math.floor(Number(b.erros)), tempo = Math.floor(Number(b.tempo));
+    if (!NIVEIS.includes(nivel) || !(zona in TOTAL)) return res.status(400).json({ erro: "Nivel ou zona non válidos." });
+    const total = TOTAL[zona];
+    if (!(acertos >= 1 && acertos <= total) || !(erros >= 0 && erros <= 100000) || !(tempo >= 1000 && tempo <= 36e6))
+      return res.status(400).json({ erro: "Marca non válida." });
+    if (tempo < acertos * 400) return res.status(400).json({ erro: "Marca non válida." }); // ninguén acerta tan rápido
+
+    const r = await sb("con_ranking_reto?select=id", {
+      method: "POST", headers: { Prefer: "return=representation" },
+      body: JSON.stringify({ alias, nivel, zona, acertos, total, erros, tempo_ms: tempo }),
+    });
+    const [{ id }] = await r.json();
+    const mellores = await contar(`con_ranking_reto?nivel=eq.${nivel}&zona=eq.${zona}&or=${enc(`(acertos.gt.${acertos},and(acertos.eq.${acertos},erros.lt.${erros}),and(acertos.eq.${acertos},erros.eq.${erros},tempo_ms.lt.${tempo}))`)}`);
+    return res.status(200).json({ id, posicion: mellores + 1, top: await topReto(nivel, zona) });
   } catch (e) {
+    console.error(e);
     return res.status(500).json({ erro: "Erro do servidor." });
   }
 };

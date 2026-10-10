@@ -7,7 +7,9 @@ const crypto = require("crypto");
 const REDIS_URL = process.env.REDIS_URL;
 const URL_REST = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
 const TOKEN_REST = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
-const CADUCA = 60 * 60 * 12;
+const CADUCA = 60 * 60 * 12;        // partidas con reloxo
+const CADUCA_LENTA = 60 * 60 * 24 * 7; // partidas sen límite de tempo
+const TEMPOS = [20, 30, 40, 0];      // segundos por quenda/rolda; 0 = sen límite
 const LETRAS = "ABCDEFGHJKLMNPQRSTUVWXYZ";
 const RAZAS = ["rubia", "cachena", "frisona", "milka", "vianesa", "frieiresa"];
 const ZONAS = ["todo", "15", "27", "32", "36"];
@@ -44,7 +46,7 @@ async function redis(comandos) {
 
 const chave = sala => `concellos:vacas:${sala}`;
 async function ler(sala) { const [j] = await redis([["GET", chave(sala)]]); return j ? JSON.parse(j) : null; }
-async function gardar(p) { p.v = (p.v || 0) + 1; await redis([["SET", chave(p.sala), JSON.stringify(p), "EX", String(CADUCA)]]); }
+async function gardar(p) { p.v = (p.v || 0) + 1; await redis([["SET", chave(p.sala), JSON.stringify(p), "EX", String(p.tempo === 0 ? CADUCA_LENTA : CADUCA)]]); }
 const codigo = () => Array.from({ length: 4 }, () => LETRAS[crypto.randomInt(LETRAS.length)]).join("");
 const limpaNome = n => String(n || "").replace(/[\u0000-\u001f<>]/g, "").trim().slice(0, 20) || "Anónimo";
 const novoXogador = (token, nome) => ({ token, nome: limpaNome(nome), vacas: [], listo: false, tiros: [], raza: null, fora: false });
@@ -85,27 +87,29 @@ function pecharRolda(p) {
 }
 function comprobarRolda(p) {
   if (p.fase !== "xogando") return false;
+  const limite = p.tempo == null ? (p.modo === "duelo" ? TEMPO_QUENDA : TEMPO_ROLDA) : p.tempo;
   if (p.modo === "duelo") {
     if (!p.quendaInicio) { p.quendaInicio = Date.now(); return true; }
-    if (Date.now() - p.quendaInicio > TEMPO_QUENDA * 1000) {
+    if (limite && Date.now() - p.quendaInicio > limite * 1000) {
       if (p.desempate) { p.fase = "fin"; p.gañador = 0; return true; }
       p.quen = 1 - p.quen; p.quendaInicio = Date.now(); p.saltos = (p.saltos || 0) + 1; return true;
     }
     return false;
   }
   const todos = deben(p).every(i => p.actual[i]);
-  const caducou = Date.now() - p.roldaInicio > TEMPO_ROLDA * 1000;
+  const caducou = limite > 0 && Date.now() - p.roldaInicio > limite * 1000;
   if (todos || caducou) { pecharRolda(p); return true; }
   return false;
 }
 
+const lim = p => p.tempo == null ? (p.modo === "duelo" ? TEMPO_QUENDA : TEMPO_ROLDA) : p.tempo;
 function vista(p, eu) {
   const min = p.xog[eu];
   if (p.modo === "duelo") {
     const riv = p.xog[1 - eu];
     return {
       modo: "duelo", sala: p.sala, fase: p.fase, v: p.v, eu, quen: p.quen, vacas: p.vacas, dist: p.dist, gañador: p.gañador, zona: p.zona || "todo", empate: !!p.empate, desempate: !!p.desempate,
-      tempoQuenda: TEMPO_QUENDA, restante: p.fase === "xogando" ? Math.max(0, TEMPO_QUENDA * 1000 - (Date.now() - (p.quendaInicio || Date.now()))) : 0,
+      tempo: lim(p), restante: p.fase === "xogando" && lim(p) ? Math.max(0, lim(p) * 1000 - (Date.now() - (p.quendaInicio || Date.now()))) : null,
       nomes: p.xog.map(x => x.nome),
       meu: { vacas: min.vacas, listo: !!min.listo, tiros: min.tiros, atopadas: min.tiros.filter(t => t.r === "vaca").length, raza: min.raza },
       rival: riv ? { nome: riv.nome, listo: !!riv.listo, tiros: riv.tiros, atopadas: riv.tiros.filter(t => t.r === "vaca").length, raza: riv.raza, vacas: p.fase === "fin" ? riv.vacas : undefined } : null,
@@ -114,7 +118,7 @@ function vista(p, eu) {
   const a = atopadas(p);
   return {
     modo: "roldas", sala: p.sala, fase: p.fase, v: p.v, eu, vacas: p.vacas, dist: p.dist, gañador: p.gañador, max: p.max, creador: 0, zona: p.zona || "todo",
-    tempoRolda: TEMPO_ROLDA, rolda: p.roldas.length + 1, restante: p.fase === "xogando" ? Math.max(0, TEMPO_ROLDA * 1000 - (Date.now() - p.roldaInicio)) : 0,
+    tempo: lim(p), rolda: p.roldas.length + 1, restante: p.fase === "xogando" && lim(p) ? Math.max(0, lim(p) * 1000 - (Date.now() - p.roldaInicio)) : null,
     xogadores: p.xog.map((x, i) => ({ nome: x.nome, raza: x.raza, listo: !!x.listo, fora: x.fora, puntos: puntos(p, i), quedan: vivas(p, i).length, tirou: !!p.actual[i], vacas: p.fase === "fin" ? x.vacas : undefined })),
     meu: { vacas: min.vacas, listo: !!min.listo, raza: min.raza, tirada: p.actual[eu] ? p.actual[eu].id : null },
     roldas: p.roldas.map(r => Object.entries(r).map(([i, t]) => ({ quen: +i, id: t.id, r: t.r, dono: t.dono }))),
@@ -143,15 +147,16 @@ module.exports = async (req, res) => {
 
     if (accion === "crear") {
       const veci = b.veci;
-      if (!veci || typeof veci !== "object" || Object.keys(veci).length < 100) return res.status(400).json({ erro: "Faltan os datos do mapa." });
+      if (!veci || typeof veci !== "object" || Object.keys(veci).length < 40) return res.status(400).json({ erro: "Faltan os datos do mapa." });
       const max = Math.min(4, Math.max(2, Math.floor(Number(b.xogadores)) || 2));
       const modo = max === 2 ? "duelo" : "roldas";
       const zona = ZONAS.includes(b.zona) ? b.zona : "todo";
       const vacas = vacasPara(zona, max);
       const dist = zona === "todo" ? 2 : 1;
+      const tempo = TEMPOS.includes(Number(b.tempo)) ? Number(b.tempo) : 30;
       let sala; for (let i = 0; i < 5; i++) { sala = codigo(); if (!(await ler(sala))) break; }
       const token = crypto.randomUUID();
-      const p = { sala, modo, max, zona, fase: "esperando", vacas, dist, veci, quen: 0, gañador: null, creada: Date.now(),
+      const p = { sala, modo, max, zona, tempo, fase: "esperando", vacas, dist, veci, quen: 0, gañador: null, creada: Date.now(),
         xog: [novoXogador(token, b.nome)], roldas: [], actual: {}, roldaInicio: 0 };
       await gardar(p);
       return res.status(200).json({ sala, token, eu: 0 });

@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="gl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ranking · Concellos de Galicia</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,800&family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --mar:#cfdde3; --tinta:#1f2d33; --suave:#5b6b72; --papel:#f7f9f8; --linea:#dfe7ea;
+  --c15:#8fb39a; --c27:#7c9fc4; --c32:#b98f7a; --c36:#cdb772; --ok:#2f7d4f;
+  --ouro:#d9a520; --prata:#9aa7ad; --bronce:#b9774a;
+}
+@media (prefers-color-scheme:dark){
+  :root{ --mar:#16252c; --tinta:#e8eef0; --suave:#9fb0b6; --papel:#0f1a1f; --linea:#223238; --ok:#4fbf7c; }
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--papel);color:var(--tinta);font-family:"Atkinson Hyperlegible",system-ui,sans-serif;
+  display:flex;flex-direction:column;overflow:hidden;min-width:0}
+header{flex:none;padding:10px 12px 8px;display:flex;align-items:center;gap:8px}
+header img{width:30px;height:30px;flex:none}
+h1{font-family:"Bricolage Grotesque",system-ui,sans-serif;font-weight:800;font-size:1.15rem;margin:0;line-height:1.1;flex:1;min-width:0}
+h1 small{display:block;font-family:"Atkinson Hyperlegible",system-ui,sans-serif;font-weight:400;font-size:.78rem;color:var(--suave)}
+.xogar{flex:none;font-weight:700;font-size:.85rem;text-decoration:none;color:#fff;background:var(--ok);padding:7px 11px;border-radius:10px;white-space:nowrap}
+.tabs{flex:none;display:flex;gap:5px;padding:0 12px}
+.tabs button{flex:1;min-width:0;font:inherit;font-weight:700;font-size:.85rem;padding:7px 4px;border-radius:10px;border:2px solid var(--linea);
+  background:var(--papel);color:var(--tinta);cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tabs button[aria-selected="true"]{background:var(--tinta);color:var(--papel);border-color:var(--tinta)}
+.filtros{flex:none;display:flex;gap:6px;padding:8px 12px 0}
+.filtros[hidden]{display:none}
+.filtros select{flex:1;min-width:0;font:inherit;font-size:.85rem;padding:6px 8px;border-radius:10px;border:2px solid var(--linea);background:var(--papel);color:var(--tinta)}
+.nota{flex:none;padding:6px 12px 0;font-size:.78rem;color:var(--suave)}
+main{flex:1;min-height:0;overflow-y:auto;padding:6px 12px 12px;-webkit-overflow-scrolling:touch}
+ol{list-style:none;margin:0;padding:0}
+li{display:grid;grid-template-columns:2em 1fr auto;align-items:center;gap:0 8px;padding:7px 4px;border-bottom:1px solid var(--linea)}
+.pos{font-weight:700;color:var(--suave);text-align:center;font-variant-numeric:tabular-nums}
+li:nth-child(1) .pos,li:nth-child(2) .pos,li:nth-child(3) .pos{color:#fff;border-radius:50%;width:1.7em;height:1.7em;line-height:1.7em;margin:0 auto;font-size:.85rem}
+li:nth-child(1) .pos{background:var(--ouro)} li:nth-child(2) .pos{background:var(--prata)} li:nth-child(3) .pos{background:var(--bronce)}
+.nom{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.det{grid-column:2;font-size:.8rem;color:var(--suave);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tem{grid-row:1 / 3;grid-column:3;font-weight:700;font-variant-numeric:tabular-nums;text-align:right}
+.tem small{display:block;font-weight:400;font-size:.75rem;color:var(--suave)}
+.baleiro{text-align:center;padding:28px 10px;color:var(--suave)}
+.baleiro b{display:block;font-size:1.05rem;color:var(--tinta);margin-bottom:6px}
+.baleiro a{display:inline-block;margin-top:12px}
+.cargando{padding:24px;text-align:center;color:var(--suave)}
+</style>
+</head>
+<body>
+<header>
+  <img src="/favicon.svg" alt="">
+  <h1 id="titulo">Concellos de Galicia<small id="subtitulo">Ranking</small></h1>
+  <a class="xogar" id="xogar" href="/" target="_top">Xogar</a>
+</header>
+<div class="tabs" role="tablist" id="tabs">
+  <button role="tab" data-p="hoxe" aria-selected="true"></button>
+  <button role="tab" data-p="semana" aria-selected="false"></button>
+  <button role="tab" data-p="reto" aria-selected="false"></button>
+</div>
+<div class="filtros" id="filtros" hidden>
+  <select id="zona" aria-label="Zona"></select>
+  <select id="nivel" aria-label="Nivel"></select>
+</div>
+<div class="nota" id="nota"></div>
+<main id="lista"><div class="cargando">…</div></main>
+
+<script>
+(() => {
+  const T = {
+    gl:{rank:"Ranking", xogar:"Xogar", hoxe:"Hoxe", semana:"Semana", reto:"Reto",
+        notaHoxe:"Reto diario de hoxe: 10 concellos, os mesmos para todo o mundo.",
+        notaSemana:"Mellores marcas do reto diario nos últimos 7 días.",
+        notaReto:"Localizar todos os concellos da zona contra o reloxo.",
+        todo:"Toda Galicia", facil:"Fácil", medio:"Medio", dificil:"Difícil", perfecto:"Perfecto",
+        pt:"pt", erro:"erro", erros:"erros", atopados:"atopados",
+        baleiroT:"Aínda non xogou ninguén", baleiroHoxe:"Sé a primeira persoa en facer o reto de hoxe!", baleiroOutro:"Ningunha marca por aquí aínda. Estréao ti!",
+        xogarAgora:"Xogar agora", erroCarga:"Non se puido cargar o ranking. Proba de novo nun momento."},
+    es:{rank:"Ranking", xogar:"Jugar", hoxe:"Hoy", semana:"Semana", reto:"Reto",
+        notaHoxe:"Reto diario de hoy: 10 concellos, los mismos para todo el mundo.",
+        notaSemana:"Mejores marcas del reto diario en los últimos 7 días.",
+        notaReto:"Localizar todos los concellos de la zona contra reloj.",
+        todo:"Toda Galicia", facil:"Fácil", medio:"Medio", dificil:"Difícil", perfecto:"Perfecto",
+        pt:"pt", erro:"error", erros:"errores", atopados:"encontrados",
+        baleiroT:"Todavía no ha jugado nadie", baleiroHoxe:"¡Sé la primera persona en hacer el reto de hoy!", baleiroOutro:"Ninguna marca por aquí todavía. ¡Estrénalo tú!",
+        xogarAgora:"Jugar ahora", erroCarga:"No se pudo cargar el ranking. Prueba de nuevo en un momento."},
+    ca:{rank:"Rànquing", xogar:"Jugar", hoxe:"Avui", semana:"Setmana", reto:"Repte",
+        notaHoxe:"Repte diari d'avui: 10 concellos, els mateixos per a tothom.",
+        notaSemana:"Millors marques del repte diari dels últims 7 dies.",
+        notaReto:"Localitzar tots els concellos de la zona contra rellotge.",
+        todo:"Tota Galícia", facil:"Fàcil", medio:"Mitjà", dificil:"Difícil", perfecto:"Perfecte",
+        pt:"pt", erro:"error", erros:"errors", atopados:"trobats",
+        baleiroT:"Encara no hi ha jugat ningú", baleiroHoxe:"Sigues la primera persona a fer el repte d'avui!", baleiroOutro:"Encara no hi ha cap marca. Estrena-ho tu!",
+        xogarAgora:"Juga ara", erroCarga:"No s'ha pogut carregar el rànquing. Torna-ho a provar d'aquí a una estona."},
+    eu:{rank:"Sailkapena", xogar:"Jokatu", hoxe:"Gaur", semana:"Astea", reto:"Erronka",
+        notaHoxe:"Gaurko eguneko erronka: 10 udalerri, berak denontzat.",
+        notaSemana:"Eguneko erronkaren marka onenak azken 7 egunetan.",
+        notaReto:"Eremuko udalerri guztiak kokatu, erlojuaren kontra.",
+        todo:"Galizia osoa", facil:"Erraza", medio:"Ertaina", dificil:"Zaila", perfecto:"Perfektua",
+        pt:"pt", erro:"akats", erros:"akats", atopados:"aurkituta",
+        baleiroT:"Oraindik ez du inork jokatu", baleiroHoxe:"Izan zaitez gaurko erronka egiten lehena!", baleiroOutro:"Oraindik ez dago markarik. Estreina ezazu zuk!",
+        xogarAgora:"Jokatu orain", erroCarga:"Ezin izan da sailkapena kargatu. Saiatu berriro geroxeago."}
+  };
+  const PROV = {todo:null, "15":"A Coruña", "27":"Lugo", "32":"Ourense", "36":"Pontevedra"};
+  const NIVEIS = ["facil","medio","dificil","perfecto"];
+  const q = new URLSearchParams(location.search);
+  const lang = T[q.get("lang")] ? q.get("lang") : "gl";
+  const t = T[lang];
+  const n = Math.min(50, Math.max(1, parseInt(q.get("n"), 10) || 10));
+  document.documentElement.lang = lang;
+
+  // "Hoxe" en hora de España
+  const dataMadrid = d => new Intl.DateTimeFormat("sv-SE", {timeZone:"Europe/Madrid"}).format(d);
+  const hoxe = dataMadrid(new Date());
+  const haiSeisDias = dataMadrid(new Date(Date.now() - 6 * 864e5));
+  const mmss = ms => { const cs = Math.floor(ms/10), s = Math.floor(cs/100); return `${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}.${String(cs%100).padStart(2,"0")}`; };
+  const ddmm = d => { const [, m, dd] = d.split("-"); return `${dd}/${m}`; };
+  const sen = s => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
+
+  // Vista inicial (p) e variante (v): v pode ser provincia e/ou nivel, p.ex. "lugo", "dificil", "lugo-dificil"
+  let vista = ({hoxe:"hoxe", hoy:"hoxe", avui:"hoxe", gaur:"hoxe", diario:"hoxe", dia:"hoxe",
+                semana:"semana", setmana:"semana", astea:"semana",
+                reto:"reto", repte:"reto", erronka:"reto", sempre:"reto", siempre:"reto", total:"reto"})[sen(q.get("p") || "")] || "hoxe";
+  let zona = "todo", nivel = "medio";
+  (q.get("v") || "").split(/[-,_ ]+/).map(sen).filter(Boolean).forEach(x => {
+    const z = {todo:"todo", galicia:"todo", acoruna:"15", coruna:"15", "15":"15", lugo:"27", "27":"27", ourense:"32", orense:"32", "32":"32", pontevedra:"36", "36":"36"}[x];
+    if (z) { zona = z; if (!q.get("p")) vista = "reto"; }
+    const nv = {facil:"facil", erraza:"facil", medio:"medio", mitja:"medio", ertaina:"medio", dificil:"dificil", zaila:"dificil", perfecto:"perfecto", perfecte:"perfecto", perfektua:"perfecto"}[x];
+    if (nv) { nivel = nv; if (!q.get("p")) vista = "reto"; }
+  });
+
+  // Textos
+  const $ = id => document.getElementById(id);
+  $("subtitulo").textContent = t.rank; $("xogar").textContent = t.xogar;
+  document.querySelectorAll("#tabs button").forEach(b => b.textContent = t[b.dataset.p]);
+  $("zona").innerHTML = Object.entries(PROV).map(([k, v]) => `<option value="${k}">${v || t.todo}</option>`).join("");
+  $("nivel").innerHTML = NIVEIS.map(k => `<option value="${k}">${t[k]}</option>`).join("");
+  $("zona").value = zona; $("nivel").value = nivel;
+
+  function baleiro(){
+    const d = document.createElement("div"); d.className = "baleiro";
+    const b = document.createElement("b"); b.textContent = t.baleiroT;
+    const p = document.createElement("div"); p.textContent = vista === "hoxe" ? t.baleiroHoxe : t.baleiroOutro;
+    const a = document.createElement("a"); a.className = "xogar"; a.href = "/"; a.target = "_top"; a.textContent = t.xogarAgora;
+    d.append(b, p, a); return d;
+  }
+
+  function fila(e, i){
+    const li = document.createElement("li");
+    const mk = (c, txt) => { const s = document.createElement("span"); s.className = c; s.textContent = txt; return s; };
+    const erros = `${e.erros} ${e.erros === 1 ? t.erro : t.erros}`;
+    const det = vista === "reto" ? `${e.acertos}/${e.total} ${t.atopados}, ${erros}` : `${e.puntos} ${t.pt}, ${e.acertos}/10, ${erros}`;
+    const tem = mk("tem", mmss(e.tempo));
+    if (vista === "semana" && e.data){ const sm = document.createElement("small"); sm.textContent = ddmm(e.data); tem.appendChild(sm); }
+    li.append(mk("pos", i + 1), mk("nom", e.alias), tem, mk("det", det));
+    return li;
+  }
+
+  let peticion = 0;
+  async function cargar(){
+    const id = ++peticion;
+    document.querySelectorAll("#tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.p === vista));
+    $("filtros").hidden = vista !== "reto";
+    $("nota").textContent = vista === "hoxe" ? `${t.notaHoxe} (${ddmm(hoxe)})` : vista === "semana" ? t.notaSemana : t.notaReto;
+    const url = vista === "reto"
+      ? `/api/ranking?nivel=${$("nivel").value}&zona=${$("zona").value}&n=${n}&cache=1`
+      : `/api/ranking?tipo=diario&data=${hoxe}${vista === "semana" ? `&desde=${haiSeisDias}` : ""}&n=${n}&cache=1`;
+    $("lista").replaceChildren(Object.assign(document.createElement("div"), {className:"cargando", textContent:"…"}));
+    try {
+      const r = await fetch(url);
+      const d = await r.json();
+      if (id !== peticion) return;
+      if (!r.ok) throw new Error(d.erro);
+      const top = d.top || [];
+      if (!top.length){ $("lista").replaceChildren(baleiro()); return; }
+      const ol = document.createElement("ol");
+      top.forEach((e, i) => ol.appendChild(fila(e, i)));
+      $("lista").replaceChildren(ol);
+    } catch(e){
+      if (id !== peticion) return;
+      $("lista").replaceChildren(Object.assign(document.createElement("div"), {className:"baleiro", textContent:t.erroCarga}));
+    }
+  }
+
+  document.querySelectorAll("#tabs button").forEach(b => b.addEventListener("click", () => { vista = b.dataset.p; cargar(); }));
+  $("zona").addEventListener("change", cargar);
+  $("nivel").addEventListener("change", cargar);
+  cargar();
+})();
+</script>
+</body>
+</html>

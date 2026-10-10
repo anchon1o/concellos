@@ -4,13 +4,15 @@ Juego web para localizar los 313 concellos de Galicia.
 
 ## Archivos
 - `index.html`: el juego completo.
-- `api/ranking.js`: función de Vercel que guarda y devuelve los rankings (Reto y Reto diario).
+- `api/ranking.js`: función de Vercel que guarda y devuelve los rankings (Reto y Reto diario) en Supabase "xogos" (tablas `con_ranking_reto` y `con_ranking_diario`).
+- `ranking.html`: página ligera solo con el ranking, para incrustarla en un iframe (cagando). Parámetros: `lang` (gl, es, ca, eu), `n` (posiciones, por defecto 10), `p` (hoxe, semana, reto) y `v` (provincia y/o nivel, por ejemplo `lugo-dificil`).
+- `sql/con_rankings.sql`: crea las tablas, índices y permisos en Supabase.
 - `api/vacas.js`: función de Vercel para las partidas a dos de "Onde teño as vacas?" (estado en Redis, caduca a las 12 h).
 - `favicon.svg`, `apple-touch-icon.png`, `og-image.png`: iconos y vista previa para compartir.
 
 ## Puesta en marcha
 1. Sube esta carpeta a un repositorio de GitHub e impórtalo en Vercel (no necesita compilación; Vercel instala `redis` desde `package.json`).
-2. Reutiliza tu base de datos Redis: en Vercel, Storage > tu base de datos Redis > Connect Project > elige el proyecto de los concellos.
+2. Redis (solo para "Onde teño as vacas?"): reutiliza tu base de datos Redis: en Vercel, Storage > tu base de datos Redis > Connect Project > elige el proyecto de los concellos.
    Así el proyecto recibe la variable `REDIS_URL`. Las claves del ranking empiezan por `concellos:`, así que no chocan con los datos de otros proyectos.
    (También funciona con Upstash, con `KV_REST_API_URL` y `KV_REST_API_TOKEN`.)
 3. Vuelve a desplegar para que la función lea la variable.
@@ -30,7 +32,13 @@ Juego web para localizar los 313 concellos de Galicia.
 
 ## Onde teño as vacas?
 - Se juega con toda Galicia (6 vacas cada uno, "pasto" si hay una vaca a 2 concellos o menos) o con una sola provincia, eligiéndola en el filtro antes de crear la sala (4 vacas a dos jugadores, 3 a tres o cuatro; pasto a 1 concello).
-- **2 jugadores:** turnos alternos de 30 segundos (constante `TEMPO_QUENDA`); si se agota, pasa el turno. Como empieza el creador, si completa primero el otro tiene una última tirada: si también completa, es empate.
-- **3 o 4 jugadores:** mapa común y rondas simultáneas de 40 segundos (`TEMPO_ROLDA`). Una tirada por ronda; resultados al cerrar la ronda. Un punto por cada vaca ajena; gana quien más puntos tiene cuando solo queda un equipo con vacas (o a las 40 rondas); en empate, quien menos vacas perdió.
+- Quien crea la sala elige el tiempo por turno/ronda: 30 s (por defecto), 40, 20 o sin límite. Sin límite, la partida dura hasta 7 días y se puede cerrar y volver más tarde; en "As túas partidas" (modo vacas, sin partida abierta) se ven las partidas pendientes y a quién le toca.
+- **2 jugadores:** turnos alternos; si se agota el tiempo, pasa el turno. Como empieza el creador, si completa primero el otro tiene una última tirada: si también completa, es empate.
+- **3 o 4 jugadores:** mapa común y rondas simultáneas con el tiempo elegido. Una tirada por ronda; resultados al cerrar la ronda. Un punto por cada vaca ajena; gana quien más puntos tiene cuando solo queda un equipo con vacas (o a las 40 rondas); en empate, quien menos vacas perdió.
 - Al atacar, el primer toque muestra el nombre del concello y el segundo (o el botón) confirma la tirada, para trabajar la memorización.
 - Seis vacas para elegir equipo (Rubia galega, Cachena, Frisona, Milka, Vianesa, Frieiresa); dos jugadores no pueden llevar la misma. Sala con código de 4 letras o enlace `?sala=CODIGO`; las partidas caducan a las 12 h.
+
+## Datos
+- Redis: solo las partidas de "Onde teño as vacas?" (claves `concellos:vacas:*`).
+- Supabase "xogos": los rankings. Variables de entorno en Vercel: `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY` (clave secreta; nunca en la página).
+- Lectura pública de los rankings (RLS select para anon); escritura solo desde la función de Vercel.
