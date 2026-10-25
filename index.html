@@ -954,13 +954,20 @@ cargar().then(topo => {
     });
   }
 
+  // Le a resposta da API e, se falla, devolve o motivo real que dá o servidor
+  async function lerApi(r){
+    let d = null; try { d = await r.json(); } catch(e){}
+    if (!d) throw new Error("Non hai conexión co servidor do ranking.");
+    if (!r.ok) throw new Error(d.erro || `Erro ${r.status}`);
+    return d;
+  }
+
   async function cargarRanking(){
     $("rEstado").textContent = "Cargando…"; $("rLista").replaceChildren();
     try {
       const r = await fetch(rTipo==="diario" ? `${API}?tipo=diario&data=${hoxe()}` : `${API}?nivel=${$("rNivel").value}&zona=${$("rZona").value}`);
-      if (!r.ok || !(r.headers.get("content-type")||"").includes("json")) throw 0;
-      pintarLista((await r.json()).top || []);
-    } catch(e){ $("rEstado").textContent = "O ranking só funciona na versión publicada en Vercel."; }
+      pintarLista((await lerApi(r)).top || []);
+    } catch(e){ $("rEstado").textContent = `Non se puido cargar o ranking: ${e.message}`; }
   }
 
   function abrirRanking(zona, niv){
@@ -983,14 +990,13 @@ cargar().then(topo => {
     $("gardar").disabled = true; $("envioEstado").textContent = "Gardando…";
     try {
       const r = await fetch(API, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({...ultima, alias})});
-      if (!r.ok || !(r.headers.get("content-type")||"").includes("json")) throw 0;
-      const d = await r.json();
+      const d = await lerApi(r);
       meuId = d.id;
       $("envioEstado").textContent = d.posicion ? `Gardado: estás no posto ${d.posicion}.` : "Gardado.";
       abrirRanking(ultima.zona, ultima.nivel);
     } catch(e){
       $("gardar").disabled = false;
-      $("envioEstado").textContent = "Non se puido gardar. O ranking só funciona na versión publicada en Vercel.";
+      $("envioEstado").textContent = `Non se puido gardar: ${e.message}`;
     }
   });
   $("outra").addEventListener("click", () => {
