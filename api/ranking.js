@@ -11,8 +11,9 @@ const DIAS_DIARIO = 45; // días que se conservan do reto diario
 // das táboas só deixan ler e engadir marcas válidas. Se en Vercel hai variables, úsanse esas.
 const XOGOS_URL = "https://pmvbllviitutbnoqpnrs.supabase.co";
 const XOGOS_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBtdmJsbHZpaXR1dGJub3FwbnJzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk4MTE3NTAsImV4cCI6MjEwNTM4Nzc1MH0.5WMnLv9oY3PXXLjCrxukt6qu2xkNwOvrkbcxYqUrdgo";
-const SB_URL = (process.env.SUPABASE_URL || XOGOS_URL).replace(/\/$/, "");
-const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_ANON_KEY || XOGOS_ANON;
+// Úsase sempre o proxecto "xogos" (as variables de Vercel xa non fan falta e non se teñen en conta)
+const SB_URL = XOGOS_URL;
+const SB_KEY = XOGOS_ANON;
 
 // Cabeceiras para a API REST de Supabase (vale coa clave service_role antiga ou coa nova sb_secret_)
 function cabeceiras(extra) {
@@ -127,6 +128,8 @@ module.exports = async (req, res) => {
     return res.status(200).json({ id, posicion: mellores + 1, top: await topReto(nivel, zona) });
   } catch (e) {
     console.error(e);
-    return res.status(500).json({ erro: "Erro do servidor." });
+    // Devólvese o motivo que dá Supabase (sen claves) para poder arranxalo
+    const motivo = String(e && e.message || e).replace(/eyJ[\w.-]+/g, "…").slice(0, 300);
+    return res.status(500).json({ erro: `Erro do servidor: ${motivo}` });
   }
 };
